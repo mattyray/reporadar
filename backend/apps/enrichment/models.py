@@ -30,6 +30,7 @@ class OrganizationContact(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        unique_together = ("organization", "email")
         indexes = [
             models.Index(fields=["organization"]),
             models.Index(fields=["email"]),

@@ -37,7 +37,7 @@ class JobListingSerializer(serializers.ModelSerializer):
 
 
 class ATSMappingSerializer(serializers.ModelSerializer):
-    job_count = serializers.IntegerField(read_only=True)
+    job_count = serializers.SerializerMethodField()
 
     class Meta:
         model = ATSMapping
@@ -51,3 +51,6 @@ class ATSMappingSerializer(serializers.ModelSerializer):
             "organization",
             "job_count",
         ]
+
+    def get_job_count(self, obj):
+        return obj.jobs.filter(is_active=True).count()

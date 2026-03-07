@@ -90,7 +90,7 @@ class JobSearchView(generics.ListAPIView):
                 # Filter jobs where detected_techs contains any of the requested techs
                 tech_q = Q()
                 for tech in tech_list:
-                    tech_q |= Q(detected_techs__contains=tech)
+                    tech_q |= Q(detected_techs__contains=[tech])
                 qs = qs.filter(tech_q)
 
         # Filter by location keyword

@@ -24,7 +24,9 @@ class ProspectDetailView(generics.RetrieveAPIView):
     """GET /api/prospects/{id}/ — Organization detail with repos and contributors."""
 
     serializer_class = OrganizationDetailSerializer
-    queryset = Organization.objects.all()
+    queryset = Organization.objects.all().prefetch_related(
+        "repos__stack_detections", "repos__contributors"
+    )
 
 
 class SaveProspectView(APIView):
@@ -81,7 +83,9 @@ class ProspectExportView(APIView):
     def get(self, request):
         saved = SavedProspect.objects.filter(
             user=request.user
-        ).select_related("organization")
+        ).select_related("organization").prefetch_related(
+            "organization__repos__stack_detections"
+        )
 
         response = HttpResponse(content_type="text/csv")
         response["Content-Disposition"] = 'attachment; filename="prospects.csv"'
