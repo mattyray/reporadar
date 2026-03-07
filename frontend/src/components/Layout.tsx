@@ -31,6 +31,9 @@ export default function Layout() {
                 <NavLink to="/prospects" className={linkClass}>
                   Companies
                 </NavLink>
+                <NavLink to="/jobs" className={linkClass}>
+                  Jobs
+                </NavLink>
                 <NavLink to="/outreach" className={linkClass}>
                   Outreach
                 </NavLink>

@@ -93,4 +93,18 @@ export const api = {
     }),
   getOutreachHistory: () =>
     request<{ results: import('../types/api').OutreachMessage[] }>('/outreach/history/'),
+
+  // Jobs
+  getOrgJobs: (orgId: number) =>
+    request<{ results: import('../types/api').JobListing[] }>(`/jobs/org/${orgId}/`),
+  checkOrgJobs: (orgId: number) =>
+    request<import('../types/api').JobCheckResponse>(`/jobs/org/${orgId}/check/`, { method: 'POST' }),
+  searchJobs: (params: { techs?: string; location?: string; department?: string; title?: string }) => {
+    const query = new URLSearchParams();
+    if (params.techs) query.set('techs', params.techs);
+    if (params.location) query.set('location', params.location);
+    if (params.department) query.set('department', params.department);
+    if (params.title) query.set('title', params.title);
+    return request<{ results: import('../types/api').JobListing[] }>(`/jobs/?${query.toString()}`);
+  },
 };

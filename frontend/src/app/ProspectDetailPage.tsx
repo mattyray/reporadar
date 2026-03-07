@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
-import type { Repo, Contributor, Contact } from '../types/api';
+import type { Repo, Contributor, Contact, JobListing } from '../types/api';
 
 export default function ProspectDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -21,6 +21,12 @@ export default function ProspectDetailPage() {
     enabled: !!orgId,
   });
 
+  const { data: jobsData } = useQuery({
+    queryKey: ['orgJobs', orgId],
+    queryFn: () => api.getOrgJobs(orgId),
+    enabled: !!orgId,
+  });
+
   const saveProspect = useMutation({
     mutationFn: () => api.saveProspect(orgId),
     onSuccess: () => {
@@ -33,10 +39,26 @@ export default function ProspectDetailPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['contacts', orgId] }),
   });
 
+  const checkJobs = useMutation({
+    mutationFn: () => api.checkOrgJobs(orgId),
+    onSuccess: (data) => {
+      if (data.status === 'probing') {
+        // Poll for results after a few seconds
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: ['orgJobs', orgId] });
+        }, 5000);
+      } else {
+        queryClient.invalidateQueries({ queryKey: ['orgJobs', orgId] });
+      }
+    },
+  });
+
   if (isLoading) return <p className="text-gray-500">Loading...</p>;
   if (!org) return <p className="text-gray-500">Company not found.</p>;
 
   const hasContacts = contacts && contacts.length > 0;
+  const jobs: JobListing[] = jobsData?.results ?? [];
+  const hasJobs = jobs.length > 0;
 
   return (
     <div className="space-y-6">
@@ -52,7 +74,14 @@ export default function ProspectDetailPage() {
               <img src={org.avatar_url} alt="" className="w-16 h-16 rounded-full" />
             )}
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">{org.name || org.github_login}</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-bold text-gray-900">{org.name || org.github_login}</h1>
+                {hasJobs && (
+                  <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                    Hiring
+                  </span>
+                )}
+              </div>
               {org.description && <p className="text-gray-600 mt-1">{org.description}</p>}
               <div className="flex gap-3 mt-2 text-sm text-gray-500">
                 {org.location && <span>{org.location}</span>}
@@ -71,7 +100,7 @@ export default function ProspectDetailPage() {
       </div>
 
       {/* Action cards — what can you do with this company */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <button
           onClick={() => saveProspect.mutate()}
           disabled={saveProspect.isPending}
@@ -81,6 +110,17 @@ export default function ProspectDetailPage() {
             {saveProspect.isSuccess ? 'Saved!' : saveProspect.isPending ? 'Saving...' : 'Save Company'}
           </p>
           <p className="text-xs text-gray-500 mt-1">Add to your saved companies list for later.</p>
+        </button>
+
+        <button
+          onClick={() => checkJobs.mutate()}
+          disabled={checkJobs.isPending}
+          className="bg-white rounded-lg shadow p-4 text-left hover:shadow-md transition-shadow cursor-pointer border-2 border-transparent hover:border-emerald-200"
+        >
+          <p className="font-medium text-gray-900 text-sm">
+            {checkJobs.isPending ? 'Checking...' : hasJobs ? `${jobs.length} Open Roles` : 'Check Open Roles'}
+          </p>
+          <p className="text-xs text-gray-500 mt-1">Search Greenhouse, Lever, Ashby, Workable for jobs.</p>
         </button>
 
         <button
@@ -106,6 +146,54 @@ export default function ProspectDetailPage() {
       {enrichOrg.isError && (
         <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm">
           {enrichOrg.error.message}
+        </div>
+      )}
+
+      {/* Open Roles */}
+      {hasJobs && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-1">Open Roles</h2>
+          <p className="text-xs text-gray-500 mb-4">
+            Active job listings found on {jobs[0]?.ats_platform ? jobs[0].ats_platform.charAt(0).toUpperCase() + jobs[0].ats_platform.slice(1) : 'ATS'}. Click to apply.
+          </p>
+          <div className="space-y-2">
+            {jobs.map((job: JobListing) => (
+              <a
+                key={job.id}
+                href={job.apply_url}
+                target="_blank"
+                rel="noreferrer"
+                className="block border border-gray-200 rounded-md p-3 hover:bg-gray-50 transition-colors"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="font-medium text-sm text-gray-900">{job.title}</span>
+                    {job.department && (
+                      <span className="ml-2 text-xs text-gray-500">{job.department}</span>
+                    )}
+                  </div>
+                  <span className="text-xs text-indigo-600 font-medium">Apply &rarr;</span>
+                </div>
+                <div className="flex items-center gap-2 mt-1">
+                  {job.location && (
+                    <span className="text-xs text-gray-500">{job.location}</span>
+                  )}
+                  {job.employment_type && (
+                    <span className="text-xs text-gray-400">{job.employment_type}</span>
+                  )}
+                </div>
+                {job.detected_techs.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {job.detected_techs.map((tech) => (
+                      <span key={tech} className="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded text-xs">
+                        {tech}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </a>
+            ))}
+          </div>
         </div>
       )}
 

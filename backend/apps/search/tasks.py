@@ -103,6 +103,11 @@ def scan_search_results(self, search_id: str):
             if len(seen_repos) >= max_results:
                 break
 
+        # Probe ATS platforms for discovered orgs (runs in background)
+        from apps.jobs.tasks import probe_org_ats as _probe_ats
+        for org_id in orgs_found:
+            _probe_ats.delay(org_id)
+
         search.status = "completed"
         search.total_repos_found = len(seen_repos)
         search.total_orgs_found = len(orgs_found)
@@ -172,6 +177,11 @@ def _search_local_database(search):
                 "matched_stack": detected_techs,
             },
         )
+
+    # Probe ATS platforms for discovered orgs (runs in background)
+    from apps.jobs.tasks import probe_org_ats as _probe_ats
+    for org_id in orgs_found:
+        _probe_ats.delay(org_id)
 
     search.status = "completed"
     search.total_repos_found = repos.count()

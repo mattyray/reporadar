@@ -47,6 +47,7 @@ export interface SearchResult {
   organization_avatar: string;
   repo_name: string;
   created_at: string;
+  is_hiring: boolean;
 }
 
 export interface Organization {
@@ -136,4 +137,28 @@ export interface OutreachMessage {
   subject: string;
   body: string;
   created_at: string;
+}
+
+export interface JobListing {
+  id: number;
+  external_id: string;
+  title: string;
+  department: string;
+  location: string;
+  employment_type: string;
+  detected_techs: string[];
+  apply_url: string;
+  is_active: boolean;
+  posted_at: string | null;
+  last_seen_at: string;
+  company_name: string;
+  ats_platform: string;
+  organization_id: number | null;
+  avatar_url: string;
+}
+
+export interface JobCheckResponse {
+  status: 'cached' | 'probing';
+  detail?: string;
+  jobs?: JobListing[];
 }

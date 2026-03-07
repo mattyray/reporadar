@@ -74,6 +74,11 @@ function SearchResultsList({ searchId }: { searchId: string }) {
             )}
             <div>
               <span className="font-medium text-gray-900">{r.organization_name}</span>
+              {r.is_hiring && (
+                <span className="ml-2 px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs font-medium">
+                  Hiring
+                </span>
+              )}
               <span className="ml-2 text-sm text-gray-500">{r.repo_name}</span>
             </div>
           </div>

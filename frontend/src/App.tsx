@@ -9,6 +9,7 @@ import ProspectsPage from './app/ProspectsPage';
 import ProspectDetailPage from './app/ProspectDetailPage';
 import SettingsPage from './app/SettingsPage';
 import OutreachPage from './app/OutreachPage';
+import JobsPage from './app/JobsPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -34,6 +35,7 @@ export default function App() {
         <Route path="dashboard" element={<SearchPage />} />
         <Route path="prospects" element={<ProspectsPage />} />
         <Route path="prospects/:id" element={<ProspectDetailPage />} />
+        <Route path="jobs" element={<JobsPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="outreach" element={<OutreachPage />} />
       </Route>

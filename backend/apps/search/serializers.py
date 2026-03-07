@@ -46,11 +46,19 @@ class SearchResultSerializer(serializers.ModelSerializer):
     organization_login = serializers.CharField(source="organization.github_login", read_only=True)
     organization_avatar = serializers.URLField(source="organization.avatar_url", read_only=True)
     repo_name = serializers.CharField(source="repo.full_name", read_only=True)
+    is_hiring = serializers.SerializerMethodField()
 
     class Meta:
         model = SearchResult
         fields = [
             "id", "organization_id", "match_score", "matched_stack",
             "organization_name", "organization_login", "organization_avatar",
-            "repo_name", "created_at",
+            "repo_name", "created_at", "is_hiring",
         ]
+
+    def get_is_hiring(self, obj):
+        from apps.jobs.models import JobListing
+        return JobListing.objects.filter(
+            ats_mapping__organization=obj.organization,
+            is_active=True,
+        ).exists()

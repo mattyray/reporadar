@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "apps.enrichment",
     "apps.resumes",
     "apps.outreach",
+    "apps.jobs",
 ]
 
 MIDDLEWARE = [
