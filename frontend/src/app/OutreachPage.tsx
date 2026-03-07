@@ -1,16 +1,82 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
-import type { OutreachMessage } from '../types/api';
+import type { OutreachMessage, Organization } from '../types/api';
+
+function ResumeSection({ queryClient }: { queryClient: ReturnType<typeof useQueryClient> }) {
+  const { data: resumeProfile, isLoading } = useQuery({
+    queryKey: ['resumeProfile'],
+    queryFn: api.getResumeProfile,
+    retry: false,
+  });
+
+  const upload = useMutation({
+    mutationFn: (file: File) => api.uploadResume(file),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['resumeProfile'] }),
+  });
+
+  const deleteResume = useMutation({
+    mutationFn: api.deleteResume,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['resumeProfile'] }),
+  });
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) upload.mutate(file);
+  };
+
+  if (isLoading) return null;
+
+  if (resumeProfile) {
+    return (
+      <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-green-800">Resume uploaded</p>
+          <p className="text-xs text-green-600 mt-0.5">
+            Your outreach messages will be personalized based on your experience.
+          </p>
+        </div>
+        <button
+          onClick={() => deleteResume.mutate()}
+          className="text-xs text-red-600 hover:underline cursor-pointer"
+        >
+          Remove
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+      <p className="text-sm font-medium text-blue-900 mb-1">Upload your resume for personalized messages</p>
+      <p className="text-xs text-blue-700 mb-3">
+        We'll use AI to match your skills and experience to each company, creating tailored outreach
+        that mentions specific projects and technologies you have in common.
+      </p>
+      <label className="inline-flex items-center gap-2 bg-blue-600 text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-blue-700 cursor-pointer">
+        <span>Choose file (PDF or DOCX)</span>
+        <input type="file" accept=".pdf,.docx" onChange={handleFile} className="hidden" />
+      </label>
+      {upload.isPending && <p className="text-xs text-blue-600 mt-2">Uploading and parsing...</p>}
+      {upload.isError && <p className="text-xs text-red-600 mt-2">{upload.error.message}</p>}
+    </div>
+  );
+}
 
 export default function OutreachPage() {
+  const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const initialOrgId = searchParams.get('orgId') || '';
 
   const [orgId, setOrgId] = useState(initialOrgId);
   const [messageType, setMessageType] = useState('cold_email');
   const [generatedMessage, setGeneratedMessage] = useState<OutreachMessage | null>(null);
+
+  const { data: prospects } = useQuery({
+    queryKey: ['prospects'],
+    queryFn: api.getProspects,
+  });
 
   const { data: history } = useQuery({
     queryKey: ['outreachHistory'],
@@ -19,25 +85,57 @@ export default function OutreachPage() {
 
   const generate = useMutation({
     mutationFn: () => api.generateOutreach(Number(orgId), messageType),
-    onSuccess: (data) => setGeneratedMessage(data),
+    onSuccess: (data) => {
+      setGeneratedMessage(data);
+      queryClient.invalidateQueries({ queryKey: ['outreachHistory'] });
+    },
   });
+
+  const orgs = prospects?.results ?? [];
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-semibold text-gray-900">Outreach</h2>
+      <div>
+        <h2 className="text-xl font-semibold text-gray-900">Outreach</h2>
+        <p className="text-sm text-gray-500 mt-1">
+          Generate personalized messages to reach out to companies you've discovered.
+        </p>
+      </div>
+
+      <ResumeSection queryClient={queryClient} />
 
       <div className="bg-white rounded-lg shadow p-6 space-y-4">
         <h3 className="text-lg font-medium text-gray-900">Generate Message</h3>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Organization ID</label>
-            <input
-              type="number"
-              value={orgId}
-              onChange={(e) => setOrgId(e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-              placeholder="Enter org ID"
-            />
+            <label className="block text-sm font-medium text-gray-700 mb-1">Organization</label>
+            {orgs.length > 0 ? (
+              <select
+                value={orgId}
+                onChange={(e) => setOrgId(e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+              >
+                <option value="">Select an organization...</option>
+                {orgs.map((org: Organization) => (
+                  <option key={org.id} value={org.id}>
+                    {org.name || org.github_login}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div>
+                <input
+                  type="number"
+                  value={orgId}
+                  onChange={(e) => setOrgId(e.target.value)}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                  placeholder="Organization ID"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  Run a search first to discover organizations.
+                </p>
+              </div>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Message Type</label>
@@ -57,7 +155,7 @@ export default function OutreachPage() {
           disabled={!orgId || generate.isPending}
           className="bg-purple-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-purple-700 disabled:opacity-50 cursor-pointer"
         >
-          {generate.isPending ? 'Generating...' : 'Generate'}
+          {generate.isPending ? 'Generating...' : 'Generate Message'}
         </button>
       </div>
 
@@ -69,7 +167,15 @@ export default function OutreachPage() {
 
       {generatedMessage && (
         <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-2">{generatedMessage.subject}</h3>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-lg font-medium text-gray-900">{generatedMessage.subject}</h3>
+            <button
+              onClick={() => navigator.clipboard.writeText(generatedMessage.body)}
+              className="text-xs text-indigo-600 hover:underline cursor-pointer"
+            >
+              Copy to clipboard
+            </button>
+          </div>
           <p className="text-xs text-gray-500 mb-4">
             {generatedMessage.message_type} for {generatedMessage.organization_name}
           </p>

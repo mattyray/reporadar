@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import type { SearchConfig, SearchQuery, SearchResult } from '../types/api';
 import { useNavigate } from 'react-router-dom';
+import SetupChecklist from '../components/SetupChecklist';
 
 function SearchForm({ onSubmit }: { onSubmit: (config: SearchConfig) => void }) {
   const [mustHave, setMustHave] = useState('');
@@ -210,6 +211,7 @@ export default function SearchPage() {
 
   return (
     <div className="space-y-6">
+      <SetupChecklist />
       <SearchForm onSubmit={(config) => createSearch.mutate(config)} />
 
       {createSearch.isError && (

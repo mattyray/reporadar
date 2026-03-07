@@ -12,54 +12,99 @@ export default function SettingsPage() {
     queryFn: api.getApiKeys,
   });
 
-  const { data: resumeProfile } = useQuery({
-    queryKey: ['resumeProfile'],
-    queryFn: api.getResumeProfile,
-  });
-
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-semibold text-gray-900">Settings</h2>
+      <div>
+        <h2 className="text-xl font-semibold text-gray-900">Settings</h2>
+        <p className="text-sm text-gray-500 mt-1">Manage your account and connected services.</p>
+      </div>
 
+      {/* Profile & Connected Services */}
       <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Profile</h3>
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Account</h3>
         {user && (
-          <div className="space-y-2 text-sm text-gray-600">
-            <p><span className="font-medium text-gray-900">Email:</span> {user.email}</p>
-            <p><span className="font-medium text-gray-900">Name:</span> {user.first_name} {user.last_name}</p>
-            <p>
-              <span className="font-medium text-gray-900">GitHub:</span>{' '}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between py-2 border-b border-gray-100">
+              <div>
+                <p className="text-sm font-medium text-gray-900">Email</p>
+                <p className="text-sm text-gray-500">{user.email}</p>
+              </div>
+            </div>
+            <div className="flex items-center justify-between py-2 border-b border-gray-100">
+              <div>
+                <p className="text-sm font-medium text-gray-900">Name</p>
+                <p className="text-sm text-gray-500">
+                  {user.first_name || user.last_name
+                    ? `${user.first_name} ${user.last_name}`.trim()
+                    : 'Not set'}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center justify-between py-2">
+              <div>
+                <p className="text-sm font-medium text-gray-900">GitHub</p>
+                <p className="text-sm text-gray-500">
+                  {user.github_connected
+                    ? 'Connected — used for searching GitHub organizations'
+                    : 'Not connected — required to search GitHub'}
+                </p>
+              </div>
               {user.github_connected ? (
-                <span className="text-green-600">Connected</span>
+                <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded">
+                  Connected
+                </span>
               ) : (
-                <a href="/api/auth/github/connect/" className="text-indigo-600 hover:underline">
+                <a
+                  href="/api/auth/github/connect/"
+                  className="bg-gray-900 text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-gray-800"
+                >
                   Connect GitHub
                 </a>
               )}
-            </p>
+            </div>
           </div>
         )}
       </div>
 
-      <APIKeySection provider="hunter" label="Hunter.io" queryClient={queryClient} apiKeys={apiKeys} />
-      <APIKeySection provider="apollo" label="Apollo.io" queryClient={queryClient} apiKeys={apiKeys} />
-
+      {/* API Keys */}
       <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Resume</h3>
-        <ResumeUpload queryClient={queryClient} hasResume={!!resumeProfile} />
+        <h3 className="text-lg font-medium text-gray-900 mb-1">API Keys</h3>
+        <p className="text-sm text-gray-500 mb-4">
+          Add your own API keys to unlock contact enrichment and other premium features.
+          Your keys are encrypted and never shared.
+        </p>
+        <div className="space-y-4">
+          <APIKeyRow
+            provider="hunter"
+            label="Hunter.io"
+            description="Find verified email addresses for engineering contacts"
+            queryClient={queryClient}
+            apiKeys={apiKeys}
+          />
+          <div className="border-t border-gray-100" />
+          <APIKeyRow
+            provider="apollo"
+            label="Apollo.io"
+            description="Access 210M+ contacts with email and phone data"
+            queryClient={queryClient}
+            apiKeys={apiKeys}
+          />
+        </div>
       </div>
     </div>
   );
 }
 
-function APIKeySection({
+function APIKeyRow({
   provider,
   label,
+  description,
   queryClient,
   apiKeys,
 }: {
   provider: string;
   label: string;
+  description: string;
   queryClient: ReturnType<typeof useQueryClient>;
   apiKeys: any[] | undefined;
 }) {
@@ -80,25 +125,33 @@ function APIKeySection({
   });
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h3 className="text-lg font-medium text-gray-900 mb-4">{label} API Key</h3>
-      {existing ? (
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-green-600">Key configured</span>
-          <button
-            onClick={() => deleteKey.mutate()}
-            className="text-sm text-red-600 hover:underline cursor-pointer"
-          >
-            Remove
-          </button>
+    <div>
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-gray-900">{label}</p>
+          <p className="text-xs text-gray-500">{description}</p>
         </div>
-      ) : (
-        <div className="flex gap-2">
+        {existing && (
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded">
+              Configured
+            </span>
+            <button
+              onClick={() => deleteKey.mutate()}
+              className="text-xs text-red-600 hover:underline cursor-pointer"
+            >
+              Remove
+            </button>
+          </div>
+        )}
+      </div>
+      {!existing && (
+        <div className="flex gap-2 mt-2">
           <input
             type="password"
             value={key}
             onChange={(e) => setKey(e.target.value)}
-            placeholder={`Enter your ${label} API key`}
+            placeholder={`Paste your ${label} API key`}
             className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm"
           />
           <button
@@ -110,59 +163,6 @@ function APIKeySection({
           </button>
         </div>
       )}
-    </div>
-  );
-}
-
-function ResumeUpload({
-  queryClient,
-  hasResume,
-}: {
-  queryClient: ReturnType<typeof useQueryClient>;
-  hasResume: boolean;
-}) {
-  const upload = useMutation({
-    mutationFn: (file: File) => api.uploadResume(file),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['resumeProfile'] }),
-  });
-
-  const deleteResume = useMutation({
-    mutationFn: api.deleteResume,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['resumeProfile'] }),
-  });
-
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) upload.mutate(file);
-  };
-
-  if (hasResume) {
-    return (
-      <div className="flex items-center justify-between">
-        <span className="text-sm text-green-600">Resume uploaded and parsed</span>
-        <button
-          onClick={() => deleteResume.mutate()}
-          className="text-sm text-red-600 hover:underline cursor-pointer"
-        >
-          Delete
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <p className="text-sm text-gray-600 mb-3">
-        Upload your resume (PDF or DOCX) to enable personalized outreach messages.
-      </p>
-      <input
-        type="file"
-        accept=".pdf,.docx"
-        onChange={handleFile}
-        className="text-sm"
-      />
-      {upload.isPending && <p className="text-sm text-gray-500 mt-2">Uploading and parsing...</p>}
-      {upload.isError && <p className="text-sm text-red-600 mt-2">{upload.error.message}</p>}
     </div>
   );
 }

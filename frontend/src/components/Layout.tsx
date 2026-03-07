@@ -26,7 +26,7 @@ export default function Layout() {
               </button>
               <div className="flex gap-1">
                 <NavLink to="/dashboard" end className={linkClass}>
-                  Search
+                  Dashboard
                 </NavLink>
                 <NavLink to="/prospects" className={linkClass}>
                   Prospects
