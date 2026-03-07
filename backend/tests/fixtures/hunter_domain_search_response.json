@@ -1,0 +1,60 @@
+{
+  "data": {
+    "domain": "acme.com",
+    "disposable": false,
+    "webmail": false,
+    "accept_all": false,
+    "pattern": "{first}.{last}",
+    "organization": "Acme Corporation",
+    "country": "US",
+    "state": "CA",
+    "total": 3,
+    "emails": [
+      {
+        "value": "jane.doe@acme.com",
+        "type": "personal",
+        "confidence": 95,
+        "first_name": "Jane",
+        "last_name": "Doe",
+        "position": "VP of Engineering",
+        "seniority": "executive",
+        "department": "engineering",
+        "linkedin": "https://linkedin.com/in/janedoe"
+      },
+      {
+        "value": "bob.smith@acme.com",
+        "type": "personal",
+        "confidence": 90,
+        "first_name": "Bob",
+        "last_name": "Smith",
+        "position": "Senior Software Engineer",
+        "seniority": "senior",
+        "department": "engineering",
+        "linkedin": "https://linkedin.com/in/bobsmith"
+      },
+      {
+        "value": "alice.jones@acme.com",
+        "type": "personal",
+        "confidence": 85,
+        "first_name": "Alice",
+        "last_name": "Jones",
+        "position": "Engineering Manager",
+        "seniority": "senior",
+        "department": "engineering",
+        "linkedin": ""
+      }
+    ]
+  },
+  "meta": {
+    "results": 3,
+    "limit": 10,
+    "offset": 0,
+    "params": {
+      "domain": "acme.com",
+      "company": null,
+      "type": null,
+      "seniority": null,
+      "department": null
+    }
+  }
+}

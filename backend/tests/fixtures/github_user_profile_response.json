@@ -1,0 +1,18 @@
+{
+  "login": "janedev",
+  "id": 70001,
+  "avatar_url": "https://avatars.githubusercontent.com/u/70001",
+  "html_url": "https://github.com/janedev",
+  "name": "Jane Developer",
+  "company": "Acme Corp",
+  "blog": "https://janedev.io",
+  "location": "San Francisco, CA",
+  "email": "jane@acme.com",
+  "bio": "Staff Engineer at Acme Corp. Django, Python, AI.",
+  "twitter_username": "janedev",
+  "public_repos": 45,
+  "followers": 320,
+  "following": 50,
+  "created_at": "2018-03-15T10:00:00Z",
+  "updated_at": "2026-03-05T08:00:00Z"
+}

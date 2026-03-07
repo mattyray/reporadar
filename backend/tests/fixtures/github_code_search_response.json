@@ -1,0 +1,58 @@
+{
+  "total_count": 2,
+  "incomplete_results": false,
+  "items": [
+    {
+      "name": "requirements.txt",
+      "path": "requirements.txt",
+      "sha": "abc123",
+      "url": "https://api.github.com/repos/acme-corp/webapp/contents/requirements.txt",
+      "html_url": "https://github.com/acme-corp/webapp/blob/main/requirements.txt",
+      "repository": {
+        "id": 100001,
+        "name": "webapp",
+        "full_name": "acme-corp/webapp",
+        "owner": {
+          "login": "acme-corp",
+          "id": 50001,
+          "type": "Organization",
+          "avatar_url": "https://avatars.githubusercontent.com/u/50001"
+        },
+        "html_url": "https://github.com/acme-corp/webapp",
+        "description": "Main web application",
+        "fork": false,
+        "stargazers_count": 42,
+        "forks_count": 5,
+        "pushed_at": "2026-03-01T10:00:00Z",
+        "created_at": "2025-06-15T08:00:00Z",
+        "default_branch": "main"
+      }
+    },
+    {
+      "name": "requirements.txt",
+      "path": "requirements.txt",
+      "sha": "def456",
+      "url": "https://api.github.com/repos/beta-labs/api-server/contents/requirements.txt",
+      "html_url": "https://github.com/beta-labs/api-server/blob/main/requirements.txt",
+      "repository": {
+        "id": 100002,
+        "name": "api-server",
+        "full_name": "beta-labs/api-server",
+        "owner": {
+          "login": "beta-labs",
+          "id": 50002,
+          "type": "Organization",
+          "avatar_url": "https://avatars.githubusercontent.com/u/50002"
+        },
+        "html_url": "https://github.com/beta-labs/api-server",
+        "description": "REST API backend",
+        "fork": false,
+        "stargazers_count": 15,
+        "forks_count": 2,
+        "pushed_at": "2026-02-20T14:30:00Z",
+        "created_at": "2025-09-01T12:00:00Z",
+        "default_branch": "main"
+      }
+    }
+  ]
+}

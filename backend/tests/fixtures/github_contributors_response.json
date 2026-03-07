@@ -1,0 +1,26 @@
+[
+  {
+    "login": "janedev",
+    "id": 70001,
+    "avatar_url": "https://avatars.githubusercontent.com/u/70001",
+    "html_url": "https://github.com/janedev",
+    "type": "User",
+    "contributions": 142
+  },
+  {
+    "login": "bobcoder",
+    "id": 70002,
+    "avatar_url": "https://avatars.githubusercontent.com/u/70002",
+    "html_url": "https://github.com/bobcoder",
+    "type": "User",
+    "contributions": 87
+  },
+  {
+    "login": "aliceeng",
+    "id": 70003,
+    "avatar_url": "https://avatars.githubusercontent.com/u/70003",
+    "html_url": "https://github.com/aliceeng",
+    "type": "User",
+    "contributions": 53
+  }
+]
