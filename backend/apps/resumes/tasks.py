@@ -1,7 +1,9 @@
 """Celery task for parsing resumes with Claude API."""
 
+import json
 import os
 
+import anthropic
 from celery import shared_task
 from django.utils import timezone
 
@@ -23,8 +25,6 @@ def parse_resume(self, profile_id: int):
         raise RuntimeError("Could not extract text from resume")
 
     # Send to Claude for structured extraction
-    import anthropic
-
     client = anthropic.Anthropic(api_key=api_key)
     message = client.messages.create(
         model="claude-sonnet-4-20250514",
@@ -36,8 +36,6 @@ def parse_resume(self, profile_id: int):
             }
         ],
     )
-
-    import json
 
     try:
         parsed = json.loads(message.content[0].text)

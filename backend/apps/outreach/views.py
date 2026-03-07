@@ -1,5 +1,6 @@
 import os
 
+import anthropic
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -76,8 +77,6 @@ class OutreachGenerateView(APIView):
             )
 
         try:
-            import anthropic
-
             client = anthropic.Anthropic(api_key=api_key)
             message = client.messages.create(
                 model="claude-sonnet-4-20250514",

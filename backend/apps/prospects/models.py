@@ -145,6 +145,7 @@ class SavedProspect(models.Model):
 
     class Meta:
         unique_together = ("user", "organization")
+        ordering = ["-created_at"]
 
     def __str__(self):
         return f"{self.user.email} saved {self.organization}"
