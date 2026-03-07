@@ -6,7 +6,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     ...options.headers as Record<string, string>,
   };
 
-  if (token) {
+  if (token && token !== 'session') {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
@@ -17,6 +17,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers,
+    credentials: 'include',
   });
 
   if (!res.ok) {

@@ -1,8 +1,41 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+
 const API_BASE = '/api';
 
 export default function LoginPage() {
+  const navigate = useNavigate();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
   const handleGoogleLogin = () => {
     window.location.href = `${API_BASE}/auth/google/`;
+  };
+
+  const handleDevLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/dev/login/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.detail || 'Login failed');
+        return;
+      }
+      localStorage.setItem('auth_token', data.token);
+      navigate('/');
+    } catch {
+      setError('Could not connect to backend');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -38,6 +71,40 @@ export default function LoginPage() {
           </svg>
           Sign in with Google
         </button>
+
+        <div className="relative my-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-300" />
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-2 bg-white text-gray-500">Dev login</span>
+          </div>
+        </div>
+
+        <form onSubmit={handleDevLogin} className="space-y-3">
+          <input
+            type="text"
+            placeholder="Username or email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full border border-gray-300 rounded-lg px-4 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full border border-gray-300 rounded-lg px-4 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          {error && <p className="text-red-600 text-sm">{error}</p>}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-gray-900 text-white rounded-lg px-4 py-2 font-medium hover:bg-gray-800 disabled:opacity-50 cursor-pointer"
+          >
+            {loading ? 'Signing in...' : 'Sign in'}
+          </button>
+        </form>
       </div>
     </div>
   );
