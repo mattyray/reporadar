@@ -113,7 +113,7 @@ CORS_ALLOWED_ORIGINS = os.environ.get(
 # Django REST Framework
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "allauth.headless.contrib.rest_framework.auth.TokenAuthentication",
+        "allauth.headless.contrib.rest_framework.authentication.JWTTokenAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
@@ -123,9 +123,8 @@ REST_FRAMEWORK = {
 }
 
 # django-allauth
-ACCOUNT_EMAIL_REQUIRED = True
-ACCOUNT_USERNAME_REQUIRED = False
-ACCOUNT_AUTHENTICATION_METHOD = "email"
+ACCOUNT_LOGIN_METHODS = {"email"}
+ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
 ACCOUNT_EMAIL_VERIFICATION = "none"  # Google already verified the email
 
 SOCIALACCOUNT_STORE_TOKENS = True  # Required to retrieve GitHub OAuth tokens
@@ -143,7 +142,7 @@ SOCIALACCOUNT_PROVIDERS = {
 
 # Allauth headless mode (SPA — React frontend)
 HEADLESS_ONLY = True
-HEADLESS_TOKEN_STRATEGY = "allauth.headless.tokens.jwt.JWTTokenStrategy"
+HEADLESS_TOKEN_STRATEGY = "allauth.headless.tokens.strategies.jwt.strategy.JWTTokenStrategy"
 
 # Celery
 CELERY_BROKER_URL = os.environ.get("REDIS_URL", "redis://redis:6379/0")
