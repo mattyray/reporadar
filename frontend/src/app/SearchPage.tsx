@@ -4,11 +4,13 @@ import { api } from '../lib/api';
 import type { SearchConfig, SearchQuery, SearchResult } from '../types/api';
 import { useNavigate } from 'react-router-dom';
 import SetupChecklist from '../components/SetupChecklist';
+import { useAuth } from '../hooks/useAuth';
 
-function SearchForm({ onSubmit }: { onSubmit: (config: SearchConfig) => void }) {
+function SearchForm({ onSubmit, isLoading }: { onSubmit: (config: SearchConfig) => void; isLoading: boolean }) {
   const [mustHave, setMustHave] = useState('');
   const [niceToHave, setNiceToHave] = useState('');
   const [aiSignals, setAiSignals] = useState('');
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [minStars, setMinStars] = useState(0);
   const [minContributors, setMinContributors] = useState(2);
   const [maxResults, setMaxResults] = useState(50);
@@ -33,83 +35,94 @@ function SearchForm({ onSubmit }: { onSubmit: (config: SearchConfig) => void }) 
 
   return (
     <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 space-y-4">
-      <h2 className="text-xl font-semibold text-gray-900">New Search</h2>
-
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Must-have technologies (comma separated)
+          What technologies do you work with?
         </label>
         <input
           type="text"
           value={mustHave}
           onChange={(e) => setMustHave(e.target.value)}
-          placeholder="django, react, postgresql"
+          placeholder="e.g. django, react, postgresql"
           className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
           required
         />
+        <p className="text-xs text-gray-400 mt-1">Comma separated. We'll find GitHub orgs using these.</p>
       </div>
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          Nice-to-have technologies (comma separated)
+          Bonus technologies (nice to have)
         </label>
         <input
           type="text"
           value={niceToHave}
           onChange={(e) => setNiceToHave(e.target.value)}
-          placeholder="typescript, celery, redis"
+          placeholder="e.g. typescript, celery, redis"
           className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
         />
       </div>
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          AI tool signals (comma separated)
+          AI tool signals
         </label>
         <input
           type="text"
           value={aiSignals}
           onChange={(e) => setAiSignals(e.target.value)}
-          placeholder="CLAUDE.md, .cursor, .github/copilot"
+          placeholder="e.g. CLAUDE.md, .cursor, .github/copilot"
           className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
         />
-      </div>
-
-      <div className="grid grid-cols-3 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Min stars</label>
-          <input
-            type="number"
-            value={minStars}
-            onChange={(e) => setMinStars(Number(e.target.value))}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Min contributors</label>
-          <input
-            type="number"
-            value={minContributors}
-            onChange={(e) => setMinContributors(Number(e.target.value))}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Max results</label>
-          <input
-            type="number"
-            value={maxResults}
-            onChange={(e) => setMaxResults(Number(e.target.value))}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-          />
-        </div>
+        <p className="text-xs text-gray-400 mt-1">Find companies using AI coding tools like Claude Code, Cursor, or Copilot.</p>
       </div>
 
       <button
-        type="submit"
-        className="w-full bg-indigo-600 text-white rounded-md py-2 px-4 font-medium hover:bg-indigo-700 cursor-pointer"
+        onClick={() => setShowAdvanced(!showAdvanced)}
+        type="button"
+        className="text-xs text-indigo-600 hover:underline cursor-pointer"
       >
-        Start Search
+        {showAdvanced ? 'Hide advanced filters' : 'Show advanced filters'}
+      </button>
+
+      {showAdvanced && (
+        <div className="grid grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Min stars</label>
+            <input
+              type="number"
+              value={minStars}
+              onChange={(e) => setMinStars(Number(e.target.value))}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Min contributors</label>
+            <input
+              type="number"
+              value={minContributors}
+              onChange={(e) => setMinContributors(Number(e.target.value))}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Max results</label>
+            <input
+              type="number"
+              value={maxResults}
+              onChange={(e) => setMaxResults(Number(e.target.value))}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+            />
+          </div>
+        </div>
+      )}
+
+      <button
+        type="submit"
+        disabled={isLoading}
+        className="w-full bg-indigo-600 text-white rounded-md py-2.5 px-4 font-medium hover:bg-indigo-700 disabled:opacity-50 cursor-pointer"
+      >
+        {isLoading ? 'Searching GitHub...' : 'Find Companies'}
       </button>
     </form>
   );
@@ -151,6 +164,7 @@ function SearchResultsList({ searchId }: { searchId: string }) {
 
   return (
     <div className="space-y-2">
+      <p className="text-sm text-gray-500">Click a company to see their repos, tech stack, and team. From there you can save them or generate outreach.</p>
       {data.results.map((r: SearchResult) => (
         <div
           key={r.id}
@@ -183,12 +197,19 @@ function SearchResultsList({ searchId }: { searchId: string }) {
 }
 
 export default function SearchPage() {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [activeSearchId, setActiveSearchId] = useState<string | null>(null);
 
   const { data: history } = useQuery({
     queryKey: ['searchHistory'],
     queryFn: api.getSearchHistory,
+  });
+
+  const { data: prospects } = useQuery({
+    queryKey: ['prospects'],
+    queryFn: api.getProspects,
   });
 
   const { data: activeSearch } = useQuery({
@@ -209,10 +230,50 @@ export default function SearchPage() {
     },
   });
 
+  const recentProspects = prospects?.results?.slice(0, 6) ?? [];
+
   return (
     <div className="space-y-6">
+      {/* Page header */}
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">
+          {user?.first_name ? `Welcome, ${user.first_name}` : 'Dashboard'}
+        </h1>
+        <p className="text-gray-500 mt-1">
+          Search GitHub to find companies building with your tech stack. We scan their repos, detect their tools, and help you reach out.
+        </p>
+      </div>
+
       <SetupChecklist />
-      <SearchForm onSubmit={(config) => createSearch.mutate(config)} />
+
+      {/* Quick stats if we have data */}
+      {recentProspects.length > 0 && (
+        <div className="bg-white rounded-lg shadow p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-gray-900">Recent Discoveries</h3>
+            <button
+              onClick={() => navigate('/prospects')}
+              className="text-xs text-indigo-600 hover:underline cursor-pointer"
+            >
+              View all saved companies
+            </button>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {recentProspects.map((org: any) => (
+              <div
+                key={org.id}
+                onClick={() => navigate(`/prospects/${org.id}`)}
+                className="flex items-center gap-2 p-2 rounded-md hover:bg-gray-50 cursor-pointer"
+              >
+                {org.avatar_url && <img src={org.avatar_url} alt="" className="w-6 h-6 rounded-full" />}
+                <span className="text-sm text-gray-700 truncate">{org.name || org.github_login}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <SearchForm onSubmit={(config) => createSearch.mutate(config)} isLoading={createSearch.isPending} />
 
       {createSearch.isError && (
         <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 text-sm">
@@ -231,7 +292,7 @@ export default function SearchPage() {
 
       {history?.results && history.results.length > 0 && (
         <div className="space-y-2">
-          <h3 className="text-lg font-semibold text-gray-900">Search History</h3>
+          <h3 className="text-lg font-semibold text-gray-900">Past Searches</h3>
           {history.results.map((s: SearchQuery) => (
             <div
               key={s.id}

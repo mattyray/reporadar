@@ -23,7 +23,9 @@ export default function ProspectDetailPage() {
 
   const saveProspect = useMutation({
     mutationFn: () => api.saveProspect(orgId),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['savedProspects'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['savedProspects'] });
+    },
   });
 
   const enrichOrg = useMutation({
@@ -32,16 +34,19 @@ export default function ProspectDetailPage() {
   });
 
   if (isLoading) return <p className="text-gray-500">Loading...</p>;
-  if (!org) return <p className="text-gray-500">Prospect not found.</p>;
+  if (!org) return <p className="text-gray-500">Company not found.</p>;
+
+  const hasContacts = contacts && contacts.length > 0;
 
   return (
     <div className="space-y-6">
       <button onClick={() => navigate(-1)} className="text-sm text-indigo-600 hover:underline cursor-pointer">
-        Back
+        &larr; Back
       </button>
 
+      {/* Company header */}
       <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-4">
             {org.avatar_url && (
               <img src={org.avatar_url} alt="" className="w-16 h-16 rounded-full" />
@@ -62,32 +67,53 @@ export default function ProspectDetailPage() {
               </div>
             </div>
           </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => saveProspect.mutate()}
-              className="bg-indigo-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-indigo-700 cursor-pointer"
-            >
-              Save
-            </button>
-            <button
-              onClick={() => enrichOrg.mutate()}
-              className="bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-700 cursor-pointer"
-            >
-              {enrichOrg.isPending ? 'Enriching...' : 'Enrich Contacts'}
-            </button>
-            <button
-              onClick={() => navigate(`/outreach?orgId=${orgId}`)}
-              className="bg-purple-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-purple-700 cursor-pointer"
-            >
-              Generate Outreach
-            </button>
-          </div>
         </div>
       </div>
 
+      {/* Action cards — what can you do with this company */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <button
+          onClick={() => saveProspect.mutate()}
+          disabled={saveProspect.isPending}
+          className="bg-white rounded-lg shadow p-4 text-left hover:shadow-md transition-shadow cursor-pointer border-2 border-transparent hover:border-indigo-200"
+        >
+          <p className="font-medium text-gray-900 text-sm">
+            {saveProspect.isSuccess ? 'Saved!' : saveProspect.isPending ? 'Saving...' : 'Save Company'}
+          </p>
+          <p className="text-xs text-gray-500 mt-1">Add to your saved companies list for later.</p>
+        </button>
+
+        <button
+          onClick={() => enrichOrg.mutate()}
+          disabled={enrichOrg.isPending}
+          className="bg-white rounded-lg shadow p-4 text-left hover:shadow-md transition-shadow cursor-pointer border-2 border-transparent hover:border-green-200"
+        >
+          <p className="font-medium text-gray-900 text-sm">
+            {enrichOrg.isPending ? 'Finding contacts...' : 'Find Email Contacts'}
+          </p>
+          <p className="text-xs text-gray-500 mt-1">Use Hunter.io to find engineering team emails.</p>
+        </button>
+
+        <button
+          onClick={() => navigate(`/outreach?orgId=${orgId}`)}
+          className="bg-white rounded-lg shadow p-4 text-left hover:shadow-md transition-shadow cursor-pointer border-2 border-transparent hover:border-purple-200"
+        >
+          <p className="font-medium text-gray-900 text-sm">Write Outreach Message</p>
+          <p className="text-xs text-gray-500 mt-1">Generate a personalized cold email or LinkedIn message.</p>
+        </button>
+      </div>
+
+      {enrichOrg.isError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm">
+          {enrichOrg.error.message}
+        </div>
+      )}
+
+      {/* Repos */}
       {org.repos?.length > 0 && (
         <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Repositories</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-1">Repositories</h2>
+          <p className="text-xs text-gray-500 mb-4">What this company is building on GitHub.</p>
           <div className="space-y-3">
             {org.repos.map((repo: Repo) => (
               <div key={repo.id} className="border border-gray-200 rounded-md p-3">
@@ -121,9 +147,11 @@ export default function ProspectDetailPage() {
         </div>
       )}
 
+      {/* Contributors */}
       {org.top_contributors?.length > 0 && (
         <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Top Contributors</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-1">Top Contributors</h2>
+          <p className="text-xs text-gray-500 mb-4">People actively building at this company.</p>
           <div className="grid gap-3 sm:grid-cols-2">
             {org.top_contributors.map((c: Contributor) => (
               <div key={c.github_username} className="flex items-center gap-3 border border-gray-200 rounded-md p-3">
@@ -141,9 +169,11 @@ export default function ProspectDetailPage() {
         </div>
       )}
 
-      {contacts && contacts.length > 0 && (
+      {/* Contacts */}
+      {hasContacts ? (
         <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Contacts</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-1">Email Contacts</h2>
+          <p className="text-xs text-gray-500 mb-4">Verified contacts from Hunter.io. Click an email to start a message.</p>
           <div className="space-y-2">
             {contacts.map((c: Contact) => (
               <div key={c.id} className="flex items-center justify-between border border-gray-200 rounded-md p-3">
@@ -171,6 +201,14 @@ export default function ProspectDetailPage() {
               </div>
             ))}
           </div>
+        </div>
+      ) : (
+        <div className="bg-gray-50 rounded-lg border border-gray-200 p-6 text-center">
+          <p className="text-sm text-gray-600 mb-2">No contacts found yet.</p>
+          <p className="text-xs text-gray-400">
+            Click "Find Email Contacts" above to search for engineering team emails via Hunter.io.
+            Requires a Hunter.io API key in Settings.
+          </p>
         </div>
       )}
     </div>

@@ -29,7 +29,7 @@ export default function Layout() {
                   Dashboard
                 </NavLink>
                 <NavLink to="/prospects" className={linkClass}>
-                  Prospects
+                  Companies
                 </NavLink>
                 <NavLink to="/outreach" className={linkClass}>
                   Outreach

@@ -12,7 +12,7 @@ CSRF_TRUSTED_ORIGINS = [
 
 # Add session auth for dev login (alongside allauth JWT for production)
 REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"] = [  # noqa: F405
-    "rest_framework.authentication.SessionAuthentication",
+    "config.auth.CsrfExemptSessionAuthentication",
     "allauth.headless.contrib.rest_framework.authentication.JWTTokenAuthentication",
 ]
 
