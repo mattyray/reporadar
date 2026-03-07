@@ -1,6 +1,6 @@
 from django.conf import settings
 from django.db import models
-from fernet_encrypted_fields.fields import EncryptedCharField
+from encrypted_fields import EncryptedCharField
 
 
 class APICredential(models.Model):
