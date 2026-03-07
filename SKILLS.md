@@ -15,6 +15,8 @@
 | Background job orchestration | Celery tasks for scan/enrich/parse | Multi-step workflows with status tracking |
 | API rate limit management | `providers/github_client.py` | Per-user rate limits via OAuth tokens, Redis caching to minimize API hits |
 | Multi-layer caching strategy | Redis (hot) + PostgreSQL (warm) | Different TTLs per data type, cache-first on all external API calls |
+| Multi-platform API aggregation | ATS client probes 4 platforms in parallel | ThreadPoolExecutor, response normalization, slug discovery heuristics |
+| NLP-lite tech extraction | `jobs/tech_extraction.py` | Regex word-boundary matching against 80+ tech keywords from job descriptions |
 | Credit-aware API integration | Hunter.io free endpoint pre-check | Call Email Count (free) before Domain Search (costs credits) |
 | BYOK credential management | `accounts/models.py` APICredential | Fernet encryption at rest, per-user isolation |
 
@@ -53,6 +55,10 @@
 | GitHub REST API v3 | Code search, repo analysis, org/contributor data | OAuth token management, rate limit handling |
 | Hunter.io API v2 | Domain search, email finding, verification | Credit tracking, free endpoint optimization |
 | Apollo.io API | Contact enrichment (optional) | Adapter built, requires paid plan |
+| Greenhouse Job Board API | Public board API, no auth | Parallel probing, response normalization |
+| Lever Postings API | Public postings API, no auth | Structured job data extraction |
+| Ashby Job Board API | Public posting API, no auth | Description parsing, tech detection |
+| Workable Widget API | Public widget API, no auth | Location normalization |
 
 ## DevOps & Infrastructure
 

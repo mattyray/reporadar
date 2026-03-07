@@ -105,17 +105,65 @@ Scaffolded the entire React frontend: 8 pages (Login, Search, Prospects, Prospec
 
 **Content angle:** "How I scaffolded a production React frontend in under an hour with AI pair programming"
 
+### 2026-03-07 — "Click Click Click Work" — The UX Redesign
+
+Rebuilt the frontend around a philosophy: users shouldn't have to figure anything out. Added a setup checklist (connect GitHub, upload resume, add API keys), tech chip selector that auto-populates from your resume, and action cards on company detail pages. Every action is one click — save, enrich, outreach. No forms, no configuration, no reading docs.
+
+The resume auto-detect is the best example: upload a PDF, Claude parses it, your tech stack auto-fills in the search bar, hit search. Three clicks from "I just signed up" to "here are companies hiring for my stack."
+
+**Content angle:** "The UX principle that made my side project actually usable"
+
+### 2026-03-07 — The Competitive Landscape Panic (That Wasn't)
+
+Had a moment of "does this already exist?" Deep research found: BuiltWith/Wappalyzer detect tech from websites (frontend only, miss backend entirely). StackShare is self-reported and outdated. HG Insights/Slintel are $$$$ enterprise. Clay could theoretically replicate the workflow but costs $149+/month and requires manual setup.
+
+Nobody is doing GitHub-native tech detection + ATS job board cross-referencing + resume-matched outreach. The AI tool signal detection (CLAUDE.md, .cursor, copilot) is completely novel. Competitive moat is the approach, not the tech.
+
+**Content angle:** "I thought my app already existed — here's what I found when I actually looked"
+
 ---
 
-## Phase 2: Contact Enrichment — [dates TBD]
+## Phase 2: ATS Job Board Integration — March 2026
+
+### 2026-03-07 — Four Free APIs Nobody Talks About
+
+Discovered that Greenhouse, Lever, Ashby, and Workable all have completely free, public, no-auth-required APIs for their job boards. These are designed for companies to build custom career pages, but nothing stops you from aggregating them.
+
+The catch: none support keyword search. You need to know the company slug first, then fetch ALL their jobs, then filter client-side. For RepoRadar this is perfect — we already know the company from GitHub. Try their org name as the ATS slug, and if it works, we have their entire job board.
+
+Built an ATSClient provider that probes all four platforms in parallel using ThreadPoolExecutor. A single call tests a company across all four ATS platforms in ~2 seconds. The probe runs automatically whenever GitHub search discovers a new org, so the job database grows organically.
+
+Tech extraction from job descriptions reuses the same ~80 tech keyword list from the GitHub detection module. A "Senior Django Engineer" posting that mentions "React, PostgreSQL, and Docker" gets tagged with all four techs. Users can then search the Jobs page for "Django" and find roles they'd never have found through traditional job boards.
+
+**Content angle:** "The free APIs that power a job board nobody's built yet"
+
+### 2026-03-07 — The Slug Problem
+
+The hardest part of ATS integration isn't the API — it's figuring out the slug. Stripe's Greenhouse board is at `boards.greenhouse.io/stripe`. Easy. But some companies use different slugs than their GitHub org name. Scale AI is `scaleai` on Greenhouse, not `scale-ai`. Neon Database is `neondatabase`.
+
+Current approach: try the GitHub login as-is, plus the company name with spaces removed, plus the name with hyphens. It's a heuristic, not perfect. Seeded 55+ known tech company mappings as a starting point. Every successful probe gets cached permanently — the mapping database improves over time.
+
+Future idea: scrape company websites for career page links (they often contain the ATS slug in the URL). But for now, the brute-force probe works surprisingly well.
+
+**Content angle:** "The unglamorous data problem behind every aggregation startup"
+
+### 2026-03-07 — 132 Tests, Zero Regressions
+
+Added the entire jobs feature — new Django app, ATS provider, Celery tasks, 3 API endpoints, frontend Jobs page, company detail integration, hiring badges — and the existing 89 tests didn't break. 43 new tests for tech extraction (pure function, 14 tests), ATS client (mocked HTTP for all 4 platforms, 13 tests), and API endpoints (16 tests). TDD made this possible: business logic in pure functions, providers behind adapters, views are thin.
+
+**Content angle:** "How TDD let me add a major feature without touching a single existing test"
 
 ---
 
-## Phase 3: Resume + AI Outreach — [dates TBD]
+## Phase 3: Contact Enrichment — [dates TBD]
 
 ---
 
-## Phase 4: Polish + Scale — [dates TBD]
+## Phase 4: Resume + AI Outreach — [dates TBD]
+
+---
+
+## Phase 5: Polish + Scale — [dates TBD]
 
 ---
 
@@ -138,3 +186,6 @@ Scaffolded the entire React frontend: 8 pages (Login, Search, Prospects, Prospec
 | "The API rate limit that changed my entire architecture" | 2026-03-07 rate limits | High — technical war story |
 | "Building a SaaS with zero infrastructure costs" | 2026-03-07 freemium model | Medium — business/technical crossover |
 | "Separating identity from capability in auth design" | 2026-03-07 auth pattern | Medium — architecture deep dive |
+| "The free APIs that power a job board nobody's built yet" | 2026-03-07 ATS integration | High — unique angle, practical |
+| "I thought my app already existed" | 2026-03-07 competitive landscape | Medium — founder story |
+| "How TDD let me add a major feature without touching a single existing test" | 2026-03-07 132 tests | Medium — engineering credibility |
