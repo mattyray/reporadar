@@ -35,7 +35,7 @@ Stores user's manually-entered API keys for Hunter.io and Apollo.io (BYOK). GitH
 | id | BigAutoField | PK |
 | user | FK → User | ON DELETE CASCADE |
 | provider | CharField(20) | choices: `hunter`, `apollo` |
-| encrypted_key | EncryptedCharField(500) | Fernet encryption via django-cryptography |
+| encrypted_key | EncryptedCharField(500) | Fernet encryption via django-fernet-encrypted-fields |
 | is_valid | BooleanField | Default True, set False on auth failure |
 | credits_remaining | IntegerField | Nullable, last known balance |
 | credits_checked_at | DateTimeField | Nullable, when we last checked balance |

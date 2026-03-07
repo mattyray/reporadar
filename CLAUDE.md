@@ -14,7 +14,7 @@ RepoRadar is a web application that helps engineers and job seekers find compani
 | Layer | Technology |
 |-------|------------|
 | Backend | Django 5, Django REST Framework |
-| Auth | django-allauth (Google + GitHub OAuth), djangorestframework-simplejwt |
+| Auth | django-allauth (Google + GitHub OAuth, headless mode with built-in JWT) |
 | Frontend | React 19, TypeScript, Vite, Tailwind CSS |
 | Database | PostgreSQL 16 |
 | Cache | Redis (API response caching) |
@@ -84,8 +84,10 @@ reporadar/
 ### Authentication — Google OAuth + Connected Services
 - **Account creation:** Google OAuth via `django-allauth` — everyone has a Google account, zero friction signup
 - **GitHub:** Connected service, NOT the login. User clicks "Connect GitHub" in settings, triggers GitHub OAuth flow (scopes: `read:org`, `public_repo`). We store the GitHub OAuth token encrypted alongside their account.
-- **Hunter.io / Apollo.io:** Manual API key entry (BYOK). These services don't offer third-party OAuth. Keys encrypted with Fernet (django-cryptography).
-- **Account linking:** django-allauth auto-links accounts when Google email matches GitHub email, preventing duplicates
+- **Hunter.io / Apollo.io:** Manual API key entry (BYOK). These services don't offer third-party OAuth. Keys encrypted with Fernet (django-fernet-encrypted-fields via Jazzband).
+- **Account linking:** django-allauth auto-links accounts when Google email matches GitHub email, preventing duplicates. Requires `SOCIALACCOUNT_EMAIL_AUTHENTICATION = True` and `SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True`.
+- **Headless mode:** allauth now has built-in headless JWT support (`JWTTokenStrategy`). No need for dj-rest-auth or djangorestframework-simplejwt. Auth endpoints served at `/_allauth/`. Set `HEADLESS_ONLY = True` for SPA mode.
+- **Token storage gotcha:** `SOCIALACCOUNT_STORE_TOKENS = True` is required. OAuth apps MUST be configured via Django admin (database `SocialApp` records), not just settings.py — otherwise tokens won't persist (FK constraint issue).
 - **Why this pattern:** Separates identity (Google = who you are) from data access (GitHub, Hunter, Apollo = connected services). Doesn't lock out non-GitHub users (recruiters, hiring managers). Same pattern as Vercel, Railway, Netlify.
 - **Future:** Add email/password signup as fallback, Stripe billing for shared credentials
 
@@ -93,24 +95,31 @@ reporadar/
 - **GitHub access is via OAuth token** — obtained when user connects their GitHub account
 - **OAuth scopes needed:** `read:org`, `public_repo` (read-only access to public repos and org data)
 - **Code search requires authentication** — no anonymous searches for `filename:CLAUDE.md`
-- **Search API rate limit: 30 requests/minute** (separate from the 5,000/hr core API limit)
+- **Code search rate limit: 10 requests/minute** (its own bucket, stricter than other search endpoints)
+- **Other search endpoints (repos, issues, users): 30 requests/minute**
 - **Core API: 5,000 requests/hour** per authenticated user (repo details, contributors, file contents)
+- **Contributors endpoint returns only basic data** (login, avatar, contribution count) — must call `/users/{username}` separately for email, company, bio. Budget ~N+1 API calls per repo. Limit to top 5 contributors per repo.
+- **Code search returns max 1,000 results** — combine qualifiers (language + filename + org type) to stay under cap
+- **File contents API:** files up to 1 MB returned base64-encoded via `/repos/{owner}/{repo}/contents/{path}`. No cloning needed.
 - Each user's GitHub OAuth token = their own rate limits
 - Future: Register as a GitHub App for per-installation rate limits at scale
-- **Caching is critical** — cache all GitHub responses in Redis (TTL: 24hrs for search, 7 days for repo/org data)
+- **Caching is critical** — cache all GitHub responses in Redis (TTL: 24hrs for search, 7 days for repo/org/user profile data)
 
 ### Hunter.io API Strategy
-- Free tier: 25 domain searches + 50 verifications/month
+- Free tier: **50 unified credits/month** (1 credit per search, 0.5 per verification, 0.2 per enrichment)
 - **Email Count endpoint is FREE** — always call this first to check if Hunter has data before spending a credit
-- Domain Search: 1 credit per 1-10 emails returned
-- Rate limit: 15 req/sec, 500/min — very generous
-- Test API key available for development: `test-api-key`
+- Domain Search: 1 credit per call (returns up to 10 emails)
+- Rate limit: 15 req/sec, 500/min (Domain Search + Email Finder). Email Verifier: 10 req/sec, 300/min.
+- Auth: API key via query param, `X-API-KEY` header, or `Authorization: Bearer` header. No OAuth needed.
+- Test API key available for development: `test-api-key` (validates params, returns dummy data)
 - Cache domain search results for 30 days in PostgreSQL
 
 ### Apollo.io API Strategy (Optional Provider)
-- Free tier: 100 credits/month (10,000 email credits with corporate domain)
-- **Advanced API access requires paid plan ($119+/month)** — document this clearly for users
-- Build the adapter but label it as "requires Apollo paid plan"
+- Free tier: 10,000 email credits/month, 5 mobile credits, **only 10 export credits/month** (export credits are the bottleneck for BYOK)
+- API access IS available on free tier (unlike previously documented), but rate-limited: 50 req/min, 600/day
+- **People Search endpoint is free** (no credits consumed) — useful for discovery
+- **People Enrichment costs credits** (1 credit per email, 8 per phone number)
+- Build the adapter but note free tier's 10 export credits/month severely limits programmatic use
 - 210M+ contact database — much larger than Hunter when available
 
 ### Resume Parsing
@@ -287,7 +296,7 @@ DATABASE_URL=postgresql://...
 # Redis
 REDIS_URL=redis://...
 
-# Encryption key for API key storage
+# Encryption key for API key storage (django-fernet-encrypted-fields)
 FIELD_ENCRYPTION_KEY=
 
 # Google OAuth (account creation)
@@ -301,9 +310,7 @@ GITHUB_CLIENT_SECRET=
 # Claude API (for resume parsing + outreach generation)
 ANTHROPIC_API_KEY=
 
-# JWT
-ACCESS_TOKEN_LIFETIME_MINUTES=30
-REFRESH_TOKEN_LIFETIME_DAYS=7
+# JWT (handled by allauth's built-in JWTTokenStrategy — no separate simplejwt config needed)
 ```
 
 Note: Hunter and Apollo API keys are per-user (BYOK), NOT server-level env vars. GitHub access tokens are obtained per-user via OAuth.
