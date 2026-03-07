@@ -41,6 +41,7 @@ class SearchPresetSerializer(serializers.ModelSerializer):
 
 
 class SearchResultSerializer(serializers.ModelSerializer):
+    organization_id = serializers.IntegerField(source="organization.id", read_only=True)
     organization_name = serializers.CharField(source="organization.name", read_only=True)
     organization_login = serializers.CharField(source="organization.github_login", read_only=True)
     organization_avatar = serializers.URLField(source="organization.avatar_url", read_only=True)
@@ -49,7 +50,7 @@ class SearchResultSerializer(serializers.ModelSerializer):
     class Meta:
         model = SearchResult
         fields = [
-            "id", "match_score", "matched_stack",
+            "id", "organization_id", "match_score", "matched_stack",
             "organization_name", "organization_login", "organization_avatar",
             "repo_name", "created_at",
         ]

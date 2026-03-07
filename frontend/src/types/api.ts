@@ -39,6 +39,7 @@ export interface SearchQuery {
 
 export interface SearchResult {
   id: number;
+  organization_id: number;
   match_score: number;
   matched_stack: string[];
   organization_name: string;

@@ -168,7 +168,7 @@ function SearchResultsList({ searchId }: { searchId: string }) {
       {data.results.map((r: SearchResult) => (
         <div
           key={r.id}
-          onClick={() => navigate(`/prospects/${r.id}`)}
+          onClick={() => navigate(`/prospects/${r.organization_id}`)}
           className="flex items-center justify-between bg-white rounded-lg shadow p-4 cursor-pointer hover:bg-gray-50"
         >
           <div className="flex items-center gap-3">

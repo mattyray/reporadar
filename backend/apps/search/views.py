@@ -28,8 +28,11 @@ class SearchCreateView(APIView):
         from .tasks import scan_search_results
 
         task = scan_search_results.delay(str(search.id))
-        search.celery_task_id = task.id
+        search.celery_task_id = task.id if task.id else ""
         search.save(update_fields=["celery_task_id"])
+
+        # Refresh from DB in case the task ran synchronously (eager mode)
+        search.refresh_from_db()
 
         return Response(
             SearchQuerySerializer(search).data,
