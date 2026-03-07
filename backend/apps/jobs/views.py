@@ -1,4 +1,7 @@
+from datetime import timedelta
+
 from django.db.models import Count, Q
+from django.utils import timezone
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -107,5 +110,14 @@ class JobSearchView(generics.ListAPIView):
         title = self.request.query_params.get("title")
         if title:
             qs = qs.filter(title__icontains=title)
+
+        # Filter by recency (e.g. "7" = posted/discovered in the last 7 days)
+        days = self.request.query_params.get("days")
+        if days:
+            try:
+                cutoff = timezone.now() - timedelta(days=int(days))
+                qs = qs.filter(created_at__gte=cutoff)
+            except (ValueError, TypeError):
+                pass
 
         return qs

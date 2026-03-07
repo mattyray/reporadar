@@ -99,12 +99,13 @@ export const api = {
     request<{ results: import('../types/api').JobListing[] }>(`/jobs/org/${orgId}/`),
   checkOrgJobs: (orgId: number) =>
     request<import('../types/api').JobCheckResponse>(`/jobs/org/${orgId}/check/`, { method: 'POST' }),
-  searchJobs: (params: { techs?: string; location?: string; department?: string; title?: string }) => {
+  searchJobs: (params: { techs?: string; location?: string; department?: string; title?: string; days?: string }) => {
     const query = new URLSearchParams();
     if (params.techs) query.set('techs', params.techs);
     if (params.location) query.set('location', params.location);
     if (params.department) query.set('department', params.department);
     if (params.title) query.set('title', params.title);
+    if (params.days) query.set('days', params.days);
     return request<{ results: import('../types/api').JobListing[] }>(`/jobs/?${query.toString()}`);
   },
 };

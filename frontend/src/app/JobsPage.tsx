@@ -9,6 +9,7 @@ export default function JobsPage() {
   const navigate = useNavigate();
   const [selectedTechs, setSelectedTechs] = useState<string[]>([]);
   const [locationFilter, setLocationFilter] = useState('');
+  const [newThisWeek, setNewThisWeek] = useState(false);
   const [searchTriggered, setSearchTriggered] = useState(false);
 
   // Load resume profile to auto-populate chips
@@ -29,10 +30,11 @@ export default function JobsPage() {
   const techsParam = selectedTechs.join(',');
 
   const { data: jobsData, isLoading, isFetching } = useQuery({
-    queryKey: ['jobSearch', techsParam, locationFilter],
+    queryKey: ['jobSearch', techsParam, locationFilter, newThisWeek],
     queryFn: () => api.searchJobs({
       techs: techsParam || undefined,
       location: locationFilter || undefined,
+      days: newThisWeek ? '7' : undefined,
     }),
     enabled: searchTriggered,
   });
@@ -70,6 +72,18 @@ export default function JobsPage() {
             placeholder="e.g. Remote, San Francisco, London"
             className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
           />
+        </div>
+
+        <div className="mt-4 pt-4 border-t border-gray-100 flex items-center gap-3">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={newThisWeek}
+              onChange={(e) => setNewThisWeek(e.target.checked)}
+              className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+            />
+            <span className="text-sm font-medium text-gray-700">New this week only</span>
+          </label>
         </div>
 
         <button
