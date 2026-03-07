@@ -1,132 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
-import type { SearchConfig, SearchQuery, SearchResult } from '../types/api';
+import type { SearchConfig, SearchQuery, SearchResult, ResumeProfile } from '../types/api';
 import { useNavigate } from 'react-router-dom';
-import SetupChecklist from '../components/SetupChecklist';
 import { useAuth } from '../hooks/useAuth';
-
-function SearchForm({ onSubmit, isLoading }: { onSubmit: (config: SearchConfig) => void; isLoading: boolean }) {
-  const [mustHave, setMustHave] = useState('');
-  const [niceToHave, setNiceToHave] = useState('');
-  const [aiSignals, setAiSignals] = useState('');
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [minStars, setMinStars] = useState(0);
-  const [minContributors, setMinContributors] = useState(2);
-  const [maxResults, setMaxResults] = useState(50);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const config: SearchConfig = {
-      stack_requirements: {
-        must_have: mustHave.split(',').map((s) => s.trim()).filter(Boolean),
-        nice_to_have: niceToHave.split(',').map((s) => s.trim()).filter(Boolean),
-        ai_tool_signals: aiSignals.split(',').map((s) => s.trim()).filter(Boolean),
-      },
-      filters: {
-        org_only: true,
-        min_stars: minStars,
-        min_contributors: minContributors,
-      },
-      max_results: maxResults,
-    };
-    onSubmit(config);
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          What technologies do you work with?
-        </label>
-        <input
-          type="text"
-          value={mustHave}
-          onChange={(e) => setMustHave(e.target.value)}
-          placeholder="e.g. django, react, postgresql"
-          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-          required
-        />
-        <p className="text-xs text-gray-400 mt-1">Comma separated. We'll find GitHub orgs using these.</p>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Bonus technologies (nice to have)
-        </label>
-        <input
-          type="text"
-          value={niceToHave}
-          onChange={(e) => setNiceToHave(e.target.value)}
-          placeholder="e.g. typescript, celery, redis"
-          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          AI tool signals
-        </label>
-        <input
-          type="text"
-          value={aiSignals}
-          onChange={(e) => setAiSignals(e.target.value)}
-          placeholder="e.g. CLAUDE.md, .cursor, .github/copilot"
-          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-        />
-        <p className="text-xs text-gray-400 mt-1">Find companies using AI coding tools like Claude Code, Cursor, or Copilot.</p>
-      </div>
-
-      <button
-        onClick={() => setShowAdvanced(!showAdvanced)}
-        type="button"
-        className="text-xs text-indigo-600 hover:underline cursor-pointer"
-      >
-        {showAdvanced ? 'Hide advanced filters' : 'Show advanced filters'}
-      </button>
-
-      {showAdvanced && (
-        <div className="grid grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Min stars</label>
-            <input
-              type="number"
-              value={minStars}
-              onChange={(e) => setMinStars(Number(e.target.value))}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Min contributors</label>
-            <input
-              type="number"
-              value={minContributors}
-              onChange={(e) => setMinContributors(Number(e.target.value))}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Max results</label>
-            <input
-              type="number"
-              value={maxResults}
-              onChange={(e) => setMaxResults(Number(e.target.value))}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-            />
-          </div>
-        </div>
-      )}
-
-      <button
-        type="submit"
-        disabled={isLoading}
-        className="w-full bg-indigo-600 text-white rounded-md py-2.5 px-4 font-medium hover:bg-indigo-700 disabled:opacity-50 cursor-pointer"
-      >
-        {isLoading ? 'Searching GitHub...' : 'Find Companies'}
-      </button>
-    </form>
-  );
-}
+import TechChipSelector from '../components/TechChipSelector';
+import ResumeUploadBanner from '../components/ResumeUploadBanner';
+import SetupChecklist from '../components/SetupChecklist';
 
 function SearchStatus({ search }: { search: SearchQuery }) {
   const statusColors: Record<string, string> = {
@@ -155,6 +35,7 @@ function SearchStatus({ search }: { search: SearchQuery }) {
 
 function SearchResultsList({ searchId }: { searchId: string }) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { data } = useQuery({
     queryKey: ['searchResults', searchId],
     queryFn: () => api.getSearchResults(searchId),
@@ -163,8 +44,24 @@ function SearchResultsList({ searchId }: { searchId: string }) {
   if (!data?.results?.length) return <p className="text-gray-500 text-sm">No results yet.</p>;
 
   return (
-    <div className="space-y-2">
-      <p className="text-sm text-gray-500">Click a company to see their repos, tech stack, and team. From there you can save them or generate outreach.</p>
+    <div className="space-y-3">
+      <p className="text-sm text-gray-500">Click a company to see their repos, tech stack, and team.</p>
+
+      {/* Contextual prompt: connect GitHub for more results */}
+      {!user?.github_connected && (
+        <div className="flex items-center justify-between bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+          <p className="text-sm text-yellow-800">
+            These are demo results. Connect GitHub to search 28M+ real repos.
+          </p>
+          <a
+            href="/api/auth/github/connect/"
+            className="flex-shrink-0 bg-gray-900 text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-gray-800"
+          >
+            Connect GitHub
+          </a>
+        </div>
+      )}
+
       {data.results.map((r: SearchResult) => (
         <div
           key={r.id}
@@ -201,6 +98,27 @@ export default function SearchPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [activeSearchId, setActiveSearchId] = useState<string | null>(null);
+  const [selectedTechs, setSelectedTechs] = useState<string[]>([]);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [minStars, setMinStars] = useState(0);
+  const [minContributors, setMinContributors] = useState(2);
+  const [maxResults, setMaxResults] = useState(50);
+
+  // Load resume profile to auto-populate chips
+  const { data: resumeProfile } = useQuery({
+    queryKey: ['resumeProfile'],
+    queryFn: api.getResumeProfile,
+    retry: false,
+  });
+
+  // Auto-populate chips from resume on first load
+  const [resumeApplied, setResumeApplied] = useState(false);
+  useEffect(() => {
+    if (resumeProfile && (resumeProfile as ResumeProfile).tech_stack?.length && !resumeApplied && selectedTechs.length === 0) {
+      setSelectedTechs((resumeProfile as ResumeProfile).tech_stack.map((t: string) => t.toLowerCase()));
+      setResumeApplied(true);
+    }
+  }, [resumeProfile, resumeApplied, selectedTechs.length]);
 
   const { data: history } = useQuery({
     queryKey: ['searchHistory'],
@@ -230,7 +148,29 @@ export default function SearchPage() {
     },
   });
 
+  const handleSearch = () => {
+    if (selectedTechs.length === 0) return;
+    const config: SearchConfig = {
+      stack_requirements: {
+        must_have: selectedTechs,
+      },
+      filters: {
+        org_only: true,
+        min_stars: minStars,
+        min_contributors: minContributors,
+      },
+      max_results: maxResults,
+    };
+    createSearch.mutate(config);
+  };
+
+  const handleResumeParsed = (techStack: string[]) => {
+    setSelectedTechs(techStack);
+    setResumeApplied(true);
+  };
+
   const recentProspects = prospects?.results?.slice(0, 6) ?? [];
+  const hasResume = !!(resumeProfile && (resumeProfile as ResumeProfile).parsed_at);
 
   return (
     <div className="space-y-6">
@@ -240,13 +180,108 @@ export default function SearchPage() {
           {user?.first_name ? `Welcome, ${user.first_name}` : 'Dashboard'}
         </h1>
         <p className="text-gray-500 mt-1">
-          Search GitHub to find companies building with your tech stack. We scan their repos, detect their tools, and help you reach out.
+          Pick your tech stack and we'll find companies building with the same tools.
         </p>
       </div>
 
       <SetupChecklist />
 
-      {/* Quick stats if we have data */}
+      {/* Resume upload shortcut — only show if no resume yet */}
+      {!hasResume && (
+        <ResumeUploadBanner onParsed={handleResumeParsed} />
+      )}
+
+      {/* Resume applied indicator */}
+      {hasResume && selectedTechs.length > 0 && (
+        <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-2.5">
+          <span className="font-medium">Auto-detected from your resume.</span>
+          <span className="text-green-600">Remove or add technologies below, then hit search.</span>
+        </div>
+      )}
+
+      {/* Tech chip selector */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <TechChipSelector
+          selected={selectedTechs}
+          onChange={setSelectedTechs}
+          label="What technologies do you work with?"
+          hint="Click to select, or type your own below."
+        />
+
+        {/* Advanced filters (collapsed) */}
+        <div className="mt-4 pt-4 border-t border-gray-100">
+          <button
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            type="button"
+            className="text-xs text-indigo-600 hover:underline cursor-pointer"
+          >
+            {showAdvanced ? 'Hide advanced filters' : 'Advanced filters'}
+          </button>
+
+          {showAdvanced && (
+            <div className="grid grid-cols-3 gap-4 mt-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Min stars</label>
+                <input
+                  type="number"
+                  value={minStars}
+                  onChange={(e) => setMinStars(Number(e.target.value))}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Min contributors</label>
+                <input
+                  type="number"
+                  value={minContributors}
+                  onChange={(e) => setMinContributors(Number(e.target.value))}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Max results</label>
+                <input
+                  type="number"
+                  value={maxResults}
+                  onChange={(e) => setMaxResults(Number(e.target.value))}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Search button */}
+        <button
+          onClick={handleSearch}
+          disabled={selectedTechs.length === 0 || createSearch.isPending}
+          className="mt-4 w-full bg-indigo-600 text-white rounded-md py-2.5 px-4 font-medium hover:bg-indigo-700 disabled:opacity-50 cursor-pointer"
+        >
+          {createSearch.isPending
+            ? 'Searching...'
+            : selectedTechs.length === 0
+              ? 'Select at least one technology'
+              : `Find Companies Using ${selectedTechs.slice(0, 3).join(', ')}${selectedTechs.length > 3 ? ` +${selectedTechs.length - 3} more` : ''}`}
+        </button>
+      </div>
+
+      {createSearch.isError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 text-sm">
+          {createSearch.error.message}
+        </div>
+      )}
+
+      {/* Active search results */}
+      {activeSearch && (
+        <div className="space-y-4">
+          <SearchStatus search={activeSearch} />
+          {activeSearch.status === 'completed' && (
+            <SearchResultsList searchId={activeSearch.id} />
+          )}
+        </div>
+      )}
+
+      {/* Recent discoveries */}
       {recentProspects.length > 0 && (
         <div className="bg-white rounded-lg shadow p-4">
           <div className="flex items-center justify-between mb-3">
@@ -255,7 +290,7 @@ export default function SearchPage() {
               onClick={() => navigate('/prospects')}
               className="text-xs text-indigo-600 hover:underline cursor-pointer"
             >
-              View all saved companies
+              View all
             </button>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -273,23 +308,7 @@ export default function SearchPage() {
         </div>
       )}
 
-      <SearchForm onSubmit={(config) => createSearch.mutate(config)} isLoading={createSearch.isPending} />
-
-      {createSearch.isError && (
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 text-sm">
-          {createSearch.error.message}
-        </div>
-      )}
-
-      {activeSearch && (
-        <div className="space-y-4">
-          <SearchStatus search={activeSearch} />
-          {activeSearch.status === 'completed' && (
-            <SearchResultsList searchId={activeSearch.id} />
-          )}
-        </div>
-      )}
-
+      {/* Past searches */}
       {history?.results && history.results.length > 0 && (
         <div className="space-y-2">
           <h3 className="text-lg font-semibold text-gray-900">Past Searches</h3>

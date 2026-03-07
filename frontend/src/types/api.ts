@@ -115,6 +115,20 @@ export interface Contact {
   is_engineering_lead: boolean;
 }
 
+export interface ResumeProfile {
+  id: number;
+  file_type: string;
+  parsed_data: Record<string, unknown>;
+  summary: string;
+  key_projects: string[];
+  tech_stack: string[];
+  years_experience: number | null;
+  story_hook: string;
+  parsed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface OutreachMessage {
   id: string;
   organization_name: string;

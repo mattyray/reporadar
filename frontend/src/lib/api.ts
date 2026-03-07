@@ -78,7 +78,7 @@ export const api = {
     formData.append('file', file);
     return request('/resumes/upload/', { method: 'POST', body: formData });
   },
-  getResumeProfile: () => request('/resumes/profile/'),
+  getResumeProfile: () => request<import('../types/api').ResumeProfile>('/resumes/profile/'),
   deleteResume: () => request('/resumes/profile/', { method: 'DELETE' }),
 
   // Outreach
