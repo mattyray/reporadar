@@ -16,7 +16,16 @@ def dev_login(request):
     if request.method != "POST":
         return JsonResponse({"detail": "POST only"}, status=405)
     data = json.loads(request.body)
-    user = authenticate(username=data.get("username", ""), password=data.get("password", ""))
+    email = data.get("email", "")
+    password = data.get("password", "")
+    # Look up by email (our primary identifier), then authenticate with Django's username
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    try:
+        user_obj = User.objects.get(email=email)
+        user = authenticate(username=user_obj.username, password=password)
+    except User.DoesNotExist:
+        user = None
     if not user:
         return JsonResponse({"detail": "Invalid credentials"}, status=401)
     from django.contrib.auth import login

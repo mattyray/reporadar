@@ -1,0 +1,157 @@
+import { Link } from 'react-router-dom';
+
+export default function LandingPage() {
+  return (
+    <div className="min-h-screen bg-white">
+      {/* Nav */}
+      <nav className="border-b border-gray-200 px-6 py-4 flex items-center justify-between max-w-6xl mx-auto">
+        <span className="text-xl font-bold text-gray-900">RepoRadar</span>
+        <Link
+          to="/login"
+          className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-800"
+        >
+          Sign in
+        </Link>
+      </nav>
+
+      {/* Hero */}
+      <section className="max-w-4xl mx-auto px-6 pt-20 pb-16 text-center">
+        <h1 className="text-5xl font-bold text-gray-900 mb-6 leading-tight">
+          Find companies building with{' '}
+          <span className="text-blue-600">your tech stack</span>
+        </h1>
+        <p className="text-xl text-gray-600 mb-10 max-w-2xl mx-auto">
+          RepoRadar scans GitHub organizations to find companies using the technologies you know.
+          Detect their stack, find engineering contacts, and generate personalized outreach — all from one place.
+        </p>
+        <Link
+          to="/login"
+          className="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg text-lg font-medium hover:bg-blue-700"
+        >
+          Get started free
+        </Link>
+      </section>
+
+      {/* How it works */}
+      <section className="bg-gray-50 py-20">
+        <div className="max-w-5xl mx-auto px-6">
+          <h2 className="text-3xl font-bold text-gray-900 text-center mb-12">
+            How it works
+          </h2>
+          <div className="grid md:grid-cols-3 gap-8">
+            <Step
+              number="1"
+              title="Search by stack"
+              description="Tell us what technologies you work with — Django, React, TypeScript, whatever. We search GitHub for organizations using those tools."
+            />
+            <Step
+              number="2"
+              title="Discover prospects"
+              description="We analyze repos for dependency files, AI tool signals (CLAUDE.md, .cursor), Docker, CI/CD, and more. Each org gets a match score."
+            />
+            <Step
+              number="3"
+              title="Reach out"
+              description="Find engineering contacts via Hunter.io, upload your resume, and generate personalized outreach messages with AI. Land the interview."
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* What we detect */}
+      <section className="py-20">
+        <div className="max-w-5xl mx-auto px-6">
+          <h2 className="text-3xl font-bold text-gray-900 text-center mb-12">
+            What we detect
+          </h2>
+          <div className="grid md:grid-cols-2 gap-6">
+            <DetectCard
+              title="Tech Stack"
+              items={['requirements.txt', 'package.json', 'pyproject.toml', 'Pipfile']}
+              description="We parse dependency files to identify frameworks, libraries, and languages."
+            />
+            <DetectCard
+              title="AI Tool Signals"
+              items={['CLAUDE.md', '.cursor/', 'copilot-instructions.md', '.windsurfrules']}
+              description="Find companies using Claude Code, Cursor, GitHub Copilot, and Windsurf."
+            />
+            <DetectCard
+              title="Production Signals"
+              items={['Dockerfile', '.github/workflows/', 'pytest.ini', 'Procfile']}
+              description="Docker, CI/CD, test suites, and deployment configs signal mature engineering."
+            />
+            <DetectCard
+              title="Team & Activity"
+              items={['Contributors', 'Recent pushes', 'Stars & forks', 'Org size']}
+              description="Active teams with multiple contributors score higher than abandoned repos."
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing */}
+      <section className="bg-gray-50 py-20">
+        <div className="max-w-4xl mx-auto px-6 text-center">
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">Simple pricing</h2>
+          <p className="text-gray-600 mb-12">Most features are free. Pay only for premium enrichment.</p>
+          <div className="grid md:grid-cols-2 gap-8 max-w-2xl mx-auto">
+            <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-200 text-left">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Free</h3>
+              <p className="text-3xl font-bold text-gray-900 mb-6">$0</p>
+              <ul className="space-y-2 text-gray-600 text-sm">
+                <li className="flex items-start gap-2"><span className="text-green-600 mt-0.5">&#10003;</span> GitHub org search</li>
+                <li className="flex items-start gap-2"><span className="text-green-600 mt-0.5">&#10003;</span> Stack detection & scoring</li>
+                <li className="flex items-start gap-2"><span className="text-green-600 mt-0.5">&#10003;</span> Contributor profiles</li>
+                <li className="flex items-start gap-2"><span className="text-green-600 mt-0.5">&#10003;</span> Save & export prospects</li>
+              </ul>
+            </div>
+            <div className="bg-white rounded-xl p-8 shadow-sm border-2 border-blue-600 text-left">
+              <h3 className="text-lg font-semibold text-blue-600 mb-2">Pro</h3>
+              <p className="text-3xl font-bold text-gray-900 mb-6">BYOK</p>
+              <ul className="space-y-2 text-gray-600 text-sm">
+                <li className="flex items-start gap-2"><span className="text-green-600 mt-0.5">&#10003;</span> Everything in Free</li>
+                <li className="flex items-start gap-2"><span className="text-green-600 mt-0.5">&#10003;</span> Contact enrichment (Hunter.io)</li>
+                <li className="flex items-start gap-2"><span className="text-green-600 mt-0.5">&#10003;</span> AI outreach generation</li>
+                <li className="flex items-start gap-2"><span className="text-green-600 mt-0.5">&#10003;</span> Resume parsing</li>
+              </ul>
+              <p className="text-xs text-gray-500 mt-4">Bring your own API keys. We never store your data.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="border-t border-gray-200 py-8 text-center text-sm text-gray-500">
+        <p>Built by <a href="https://github.com/mattyray" className="text-gray-700 hover:underline" target="_blank" rel="noopener noreferrer">Matt Raynor</a> with Django, React, and Claude.</p>
+      </footer>
+    </div>
+  );
+}
+
+function Step({ number, title, description }: { number: string; title: string; description: string }) {
+  return (
+    <div className="text-center">
+      <div className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center mx-auto mb-4 text-lg font-bold">
+        {number}
+      </div>
+      <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3>
+      <p className="text-gray-600 text-sm">{description}</p>
+    </div>
+  );
+}
+
+function DetectCard({ title, items, description }: { title: string; items: string[]; description: string }) {
+  return (
+    <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
+      <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3>
+      <p className="text-gray-600 text-sm mb-3">{description}</p>
+      <div className="flex flex-wrap gap-2">
+        {items.map((item) => (
+          <span key={item} className="bg-white border border-gray-300 rounded-md px-2 py-1 text-xs font-mono text-gray-700">
+            {item}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}

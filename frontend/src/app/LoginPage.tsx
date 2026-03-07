@@ -22,7 +22,7 @@ export default function LoginPage() {
       const res = await fetch(`${API_BASE}/dev/login/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: email, password }),
+        body: JSON.stringify({ email, password }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -30,7 +30,7 @@ export default function LoginPage() {
         return;
       }
       localStorage.setItem('auth_token', data.token);
-      navigate('/');
+      navigate('/dashboard');
     } catch {
       setError('Could not connect to backend');
     } finally {
@@ -83,8 +83,8 @@ export default function LoginPage() {
 
         <form onSubmit={handleDevLogin} className="space-y-3">
           <input
-            type="text"
-            placeholder="Username or email"
+            type="email"
+            placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="w-full border border-gray-300 rounded-lg px-4 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"

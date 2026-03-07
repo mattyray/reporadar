@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import Layout from './components/Layout';
+import LandingPage from './app/LandingPage';
 import LoginPage from './app/LoginPage';
 import AuthCallbackPage from './app/AuthCallbackPage';
 import SearchPage from './app/SearchPage';
@@ -20,6 +21,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <Routes>
+      <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/auth/callback" element={<AuthCallbackPage />} />
       <Route
@@ -29,7 +31,7 @@ export default function App() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<SearchPage />} />
+        <Route path="dashboard" element={<SearchPage />} />
         <Route path="prospects" element={<ProspectsPage />} />
         <Route path="prospects/:id" element={<ProspectDetailPage />} />
         <Route path="settings" element={<SettingsPage />} />

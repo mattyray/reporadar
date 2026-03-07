@@ -19,13 +19,13 @@ export default function Layout() {
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4">
               <button
-                onClick={() => navigate('/')}
+                onClick={() => navigate('/dashboard')}
                 className="text-white font-bold text-xl cursor-pointer"
               >
                 RepoRadar
               </button>
               <div className="flex gap-1">
-                <NavLink to="/" end className={linkClass}>
+                <NavLink to="/dashboard" end className={linkClass}>
                   Search
                 </NavLink>
                 <NavLink to="/prospects" className={linkClass}>
