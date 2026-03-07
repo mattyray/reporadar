@@ -1,3 +1,6 @@
+import csv
+
+from django.http import HttpResponse
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -70,3 +73,43 @@ class SavedProspectDeleteView(generics.DestroyAPIView):
 
     def get_queryset(self):
         return SavedProspect.objects.filter(user=self.request.user)
+
+
+class ProspectExportView(APIView):
+    """GET /api/prospects/export/ — Export saved prospects as CSV."""
+
+    def get(self, request):
+        saved = SavedProspect.objects.filter(
+            user=request.user
+        ).select_related("organization")
+
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = 'attachment; filename="prospects.csv"'
+
+        writer = csv.writer(response)
+        writer.writerow([
+            "Organization", "GitHub URL", "Website", "Location",
+            "Description", "Status", "Notes", "Tech Stack", "Saved At",
+        ])
+
+        for sp in saved:
+            org = sp.organization
+            # Gather tech stack from all repos
+            techs = set()
+            for repo in org.repos.prefetch_related("stack_detections").all():
+                for det in repo.stack_detections.all():
+                    techs.add(det.technology_name)
+
+            writer.writerow([
+                org.name or org.github_login,
+                org.github_url,
+                org.website,
+                org.location,
+                org.description[:200],
+                sp.status,
+                sp.notes,
+                ", ".join(sorted(techs)),
+                sp.created_at.strftime("%Y-%m-%d"),
+            ])
+
+        return response

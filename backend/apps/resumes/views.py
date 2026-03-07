@@ -27,9 +27,9 @@ class ResumeUploadView(APIView):
             },
         )
 
-        # TODO: trigger Celery task to parse with Claude API
-        # from .tasks import parse_resume
-        # parse_resume.delay(profile.id)
+        # Trigger async parsing with Claude API
+        from .tasks import parse_resume
+        parse_resume.delay(profile.id)
 
         return Response(
             ResumeProfileSerializer(profile).data,
