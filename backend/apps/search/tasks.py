@@ -3,6 +3,7 @@
 from datetime import datetime, timezone
 
 from celery import shared_task
+from django.db.models import Q
 from django.utils import timezone as django_tz
 
 from apps.accounts.models import get_github_token
@@ -30,9 +31,8 @@ def scan_search_results(self, search_id: str):
     try:
         token = get_github_token(search.user)
         if not token:
-            search.status = "failed"
-            search.error_message = "GitHub not connected. Please connect your GitHub account."
-            search.save(update_fields=["status", "error_message"])
+            # No GitHub token — search local database (demo data / previously scanned)
+            _search_local_database(search)
             return
 
         client = GitHubClient(token=token)
@@ -116,6 +116,70 @@ def scan_search_results(self, search_id: str):
         search.error_message = str(e)
         search.save(update_fields=["status", "error_message"])
         raise
+
+
+def _search_local_database(search):
+    """Search locally cached/seeded organizations instead of GitHub.
+
+    This runs when GitHub isn't connected — matches against orgs already
+    in the database (from demo seed data or previous scans).
+    """
+    config = search.config
+    must_have = config.get("stack_requirements", {}).get("must_have", [])
+    nice_to_have = config.get("stack_requirements", {}).get("nice_to_have", [])
+    max_results = config.get("max_results", 50)
+
+    # Find repos that have any of the must_have technologies
+    tech_filter = Q()
+    for tech in must_have:
+        tech_filter |= Q(stack_detections__technology_name__iexact=tech)
+
+    if tech_filter:
+        repos = OrganizationRepo.objects.filter(tech_filter).distinct()[:max_results]
+    else:
+        repos = OrganizationRepo.objects.all()[:max_results]
+
+    orgs_found = set()
+    for repo in repos:
+        org = repo.organization
+        orgs_found.add(org.id)
+
+        detected_techs = list(
+            repo.stack_detections.values_list("technology_name", flat=True)
+        )
+        score = calculate_total_score(
+            detected_techs=detected_techs,
+            must_have=must_have,
+            nice_to_have=nice_to_have,
+            has_claude_md=repo.has_claude_md,
+            has_cursor_config=repo.has_cursor_config,
+            has_copilot_config=repo.has_copilot_config,
+            has_windsurf_config=repo.has_windsurf_config,
+            has_docker=repo.has_docker,
+            has_ci_cd=repo.has_ci_cd,
+            has_tests=repo.has_tests,
+            has_deployment_config=repo.has_deployment_config,
+            last_pushed_at=repo.last_pushed_at,
+            contributor_count=repo.contributors.count(),
+        )
+
+        SearchResult.objects.update_or_create(
+            search=search,
+            repo=repo,
+            defaults={
+                "organization": org,
+                "match_score": score,
+                "matched_stack": detected_techs,
+            },
+        )
+
+    search.status = "completed"
+    search.total_repos_found = repos.count()
+    search.total_orgs_found = len(orgs_found)
+    search.completed_at = django_tz.now()
+    search.save(update_fields=[
+        "status", "total_repos_found", "total_orgs_found", "completed_at"
+    ])
 
 
 def _build_search_queries(must_have, ai_signals, filters):
