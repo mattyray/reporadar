@@ -29,7 +29,7 @@ Companies that use Claude Code put a `CLAUDE.md` file in their repos. Companies 
 
 ### 2026-03-07 — GitHub API Rate Limits Almost Killed the Architecture
 
-Initial assumption: GitHub gives you 5,000 requests/hour with a token. Reality: that's for the core API only. **Code search is 30 requests/minute.** That's a 10x difference from what I expected.
+Initial assumption: GitHub gives you 5,000 requests/hour with a token. Reality: that's for the core API only. **Code search is 10 requests/minute.** That's a 10x difference from what I expected.
 
 This forced a major architecture decision: every user needs their own OAuth token so they get their own rate limits. If we used a single server token, the entire app would share 30 searches/minute across all users. Dead on arrival.
 
@@ -71,15 +71,39 @@ The caching layer is actually the hidden monetization engine: once ANY user scan
 
 ---
 
-## Phase 1: Core Search — [dates TBD]
+## Phase 1: Core Search — March 2026
 
-*Entries go here as you build. Template:*
+### 2026-03-07 — django-cryptography Doesn't Support Django 5
 
-### YYYY-MM-DD — Title
+Planned to use django-cryptography to encrypt user API keys (Hunter, Apollo) at rest. Deep research caught that it hasn't been updated for Django 5 — would've been a runtime crash during the first migration.
 
-What happened. Why it matters. The specific details.
+Switched to django-fernet-encrypted-fields (Jazzband fork). Same Fernet encryption, actively maintained, drop-in replacement. Import path is `from encrypted_fields import EncryptedCharField` — not obvious from the package name.
 
-**Content angle:** One-line hook for a potential LinkedIn post or article.
+**Content angle:** "The dependency that would've broken my app on day one — and how pre-build research saved me"
+
+### 2026-03-07 — allauth's Hidden Superpower: Built-in Headless JWT
+
+Original plan: django-allauth for OAuth + dj-rest-auth + simplejwt for JWT tokens. Three packages for auth. During research, discovered allauth v65+ has a built-in headless mode with its own JWT strategy (`JWTTokenStrategy`). Eliminated two dependencies.
+
+But getting the import paths right was a war. Tried 4 different paths before finding the real one buried in the package: `allauth.headless.tokens.strategies.jwt.strategy.JWTTokenStrategy`. Had to literally inspect the installed package's file tree inside the Docker container. The docs don't mention the full path.
+
+Also hit deprecated settings: `ACCOUNT_AUTHENTICATION_METHOD` and `ACCOUNT_EMAIL_REQUIRED` are gone in modern allauth. Replaced with `ACCOUNT_LOGIN_METHODS = {"email"}` and `ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]`.
+
+**Content angle:** "I deleted 2 auth packages by reading the source code of the third"
+
+### 2026-03-07 — 54 Tests Before a Single View Worked
+
+Wrote tests first for all the pure business logic: stack detection (parsing requirements.txt, package.json, pyproject.toml), scoring algorithm (0-100 based on stack match, AI signals, production signals, activity, team size), GitHub client, and Hunter provider. 54 tests, all passing, before the first API endpoint returned a response.
+
+The stack detection tests use real fixture files — actual requirements.txt and package.json from known projects. The scoring tests cover edge cases: perfect match (100), zero match (0), mixed signals. Provider tests mock HTTP responses so they run fast and don't hit real APIs.
+
+**Content angle:** "54 tests before my first endpoint — what TDD actually looks like in practice"
+
+### 2026-03-07 — Full-Stack Frontend in One Shot
+
+Scaffolded the entire React frontend: 8 pages (Login, Search, Prospects, Prospect Detail, Settings, Outreach, Auth Callback), a Layout with nav, an auth hook, a typed API client covering all 20+ endpoints, and TypeScript interfaces matching every backend serializer. TanStack Query handles data fetching with automatic polling for search status (3-second interval while running). Protected routes redirect to login. Clean TypeScript compile on first try.
+
+**Content angle:** "How I scaffolded a production React frontend in under an hour with AI pair programming"
 
 ---
 
