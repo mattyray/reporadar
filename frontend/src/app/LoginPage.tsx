@@ -11,9 +11,9 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   const handleGoogleLogin = () => {
-    // Navigate to our CSRF-exempt OAuth start endpoint
-    // It redirects the browser to Google's OAuth consent screen
-    window.location.href = '/api/auth/google/start/';
+    // Go directly to Railway (not through Netlify proxy) because
+    // the proxy follows redirects server-side instead of passing them to the browser
+    window.location.href = 'https://reporadar-production.up.railway.app/api/auth/google/start/';
   };
 
   const handleDevLogin = async (e: React.FormEvent) => {
