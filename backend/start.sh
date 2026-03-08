@@ -10,4 +10,4 @@ echo "=== Running migrations ==="
 python manage.py migrate 2>&1
 
 echo "=== Starting gunicorn on port $PORT ==="
-exec gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000} --log-level info
+exec gunicorn config.wsgi:application --bind [::]:${PORT:-8000} --log-level info
