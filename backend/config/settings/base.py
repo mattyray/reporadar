@@ -167,3 +167,6 @@ CACHES = {
 # Encryption key for API key storage
 FIELD_ENCRYPTION_KEY = os.environ.get("FIELD_ENCRYPTION_KEY", "")
 SALT_KEY = os.environ.get("SALT_KEY", SECRET_KEY)
+
+# Anthropic API key (for resume parsing + outreach generation)
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")

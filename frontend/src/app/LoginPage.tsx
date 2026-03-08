@@ -11,7 +11,9 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   const handleGoogleLogin = () => {
-    window.location.href = `${API_BASE}/auth/google/`;
+    // allauth headless browser-based OAuth redirect
+    const callbackUrl = encodeURIComponent(window.location.origin + '/auth/callback');
+    window.location.href = `/_allauth/browser/v1/auth/provider/redirect?provider=google&callback_url=${callbackUrl}&process=login`;
   };
 
   const handleDevLogin = async (e: React.FormEvent) => {

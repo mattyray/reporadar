@@ -55,7 +55,7 @@ export default function SettingsPage() {
                 </span>
               ) : (
                 <a
-                  href="/api/auth/github/connect/"
+                  href={`/_allauth/browser/v1/auth/provider/redirect?provider=github&callback_url=${encodeURIComponent(window.location.origin + '/auth/callback')}&process=connect`}
                   className="bg-gray-900 text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-gray-800"
                 >
                   Connect GitHub

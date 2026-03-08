@@ -12,6 +12,12 @@
   to = "https://YOUR-RAILWAY-APP.up.railway.app/_allauth/:splat"
   status = 200
 
+# OAuth callbacks (allauth uses /accounts/ path for provider callbacks)
+[[redirects]]
+  from = "/accounts/*"
+  to = "https://YOUR-RAILWAY-APP.up.railway.app/accounts/:splat"
+  status = 200
+
 # SPA fallback — all non-API routes go to index.html
 [[redirects]]
   from = "/*"

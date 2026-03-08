@@ -15,7 +15,7 @@ export default function SetupChecklist() {
   const remaining: { label: string; action?: string; href?: string }[] = [];
 
   if (!user.github_connected) {
-    remaining.push({ label: 'Connect GitHub for live search', href: '/api/auth/github/connect/' });
+    remaining.push({ label: 'Connect GitHub for live search', href: `/_allauth/browser/v1/auth/provider/redirect?provider=github&callback_url=${encodeURIComponent(window.location.origin + '/auth/callback')}&process=connect` });
   }
   if (!resumeProfile) {
     remaining.push({ label: 'Upload resume for auto-detect', action: 'Upload above' });
