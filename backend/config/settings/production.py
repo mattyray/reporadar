@@ -7,6 +7,9 @@ DEBUG = False
 # Site ID — the reporadar-app.netlify.app Site record in Django admin
 SITE_ID = int(os.environ.get("SITE_ID", "2"))
 
+# Frontend URL (for allauth redirects after OAuth)
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://reporadar-app.netlify.app")
+
 # Trust Netlify proxy headers for correct redirect URI construction
 USE_X_FORWARDED_HOST = True
 
@@ -34,9 +37,6 @@ MIDDLEWARE.insert(  # noqa: F405
     "whitenoise.middleware.WhiteNoiseMiddleware",
 )
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
-
-# Frontend URL (for allauth redirects after OAuth)
-FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://reporadar.netlify.app")
 
 # After successful OAuth, redirect browser here (relative — goes through Netlify proxy)
 LOGIN_REDIRECT_URL = FRONTEND_URL + "/auth/callback"
