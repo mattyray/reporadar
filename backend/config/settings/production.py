@@ -7,8 +7,8 @@ DEBUG = False
 # Trust Netlify proxy headers for correct redirect URI construction
 USE_X_FORWARDED_HOST = True
 
-# Security
-SECURE_SSL_REDIRECT = True
+# Security — Railway handles SSL termination, so no SECURE_SSL_REDIRECT
+# (it would break Railway's internal HTTP healthcheck)
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
