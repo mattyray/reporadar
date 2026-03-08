@@ -9,6 +9,22 @@ from django.views.decorators.csrf import csrf_exempt
 
 
 @csrf_exempt
+def oauth_start(request):
+    """Start OAuth flow — redirects browser to the provider (Google).
+    CSRF-exempt because this only initiates a redirect, no state is modified.
+    The actual auth happens via the provider's callback with proper state verification."""
+    from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
+    from allauth.socialaccount.providers.oauth2.views import OAuth2LoginView
+    from django.middleware.csrf import get_token
+
+    # Set CSRF cookie for the callback
+    get_token(request)
+    # Delegate to allauth's OAuth2 login view
+    view = OAuth2LoginView.adapter_view(GoogleOAuth2Adapter)
+    return view(request)
+
+
+@csrf_exempt
 def dev_login(request):
     """Dev-only email/password login via Django session. Never available in production."""
     if not settings.DEBUG:
@@ -36,6 +52,7 @@ def dev_login(request):
 urlpatterns = [
     path("api/health/", lambda r: JsonResponse({"status": "ok"})),
     path("api/dev/login/", dev_login),
+    path("api/auth/google/start/", oauth_start),
     path("admin/", admin.site.urls),
     path("_allauth/", include("allauth.headless.urls")),
     path("api/search/", include("apps.search.urls")),

@@ -10,38 +10,10 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleGoogleLogin = async () => {
-    // First, hit the config endpoint to ensure we have a CSRF cookie
-    await fetch('/_allauth/browser/v1/config', { credentials: 'include' });
-
-    // Read the csrftoken cookie
-    const csrfToken = document.cookie
-      .split('; ')
-      .find(row => row.startsWith('csrftoken='))
-      ?.split('=')[1] || '';
-
-    // allauth headless browser-based OAuth requires a form POST with CSRF
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = '/_allauth/browser/v1/auth/provider/redirect';
-
-    const fields: Record<string, string> = {
-      provider: 'google',
-      callback_url: window.location.origin + '/auth/callback',
-      process: 'login',
-      csrfmiddlewaretoken: csrfToken,
-    };
-
-    for (const [key, value] of Object.entries(fields)) {
-      const input = document.createElement('input');
-      input.type = 'hidden';
-      input.name = key;
-      input.value = value;
-      form.appendChild(input);
-    }
-
-    document.body.appendChild(form);
-    form.submit();
+  const handleGoogleLogin = () => {
+    // Navigate to our CSRF-exempt OAuth start endpoint
+    // It redirects the browser to Google's OAuth consent screen
+    window.location.href = '/api/auth/google/start/';
   };
 
   const handleDevLogin = async (e: React.FormEvent) => {
