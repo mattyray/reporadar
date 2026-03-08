@@ -10,10 +10,38 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleGoogleLogin = () => {
-    // allauth headless browser-based OAuth redirect
-    const callbackUrl = encodeURIComponent(window.location.origin + '/auth/callback');
-    window.location.href = `/_allauth/browser/v1/auth/provider/redirect?provider=google&callback_url=${callbackUrl}&process=login`;
+  const handleGoogleLogin = async () => {
+    // First, hit the config endpoint to ensure we have a CSRF cookie
+    await fetch('/_allauth/browser/v1/config', { credentials: 'include' });
+
+    // Read the csrftoken cookie
+    const csrfToken = document.cookie
+      .split('; ')
+      .find(row => row.startsWith('csrftoken='))
+      ?.split('=')[1] || '';
+
+    // allauth headless browser-based OAuth requires a form POST with CSRF
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/_allauth/browser/v1/auth/provider/redirect';
+
+    const fields: Record<string, string> = {
+      provider: 'google',
+      callback_url: window.location.origin + '/auth/callback',
+      process: 'login',
+      csrfmiddlewaretoken: csrfToken,
+    };
+
+    for (const [key, value] of Object.entries(fields)) {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = key;
+      input.value = value;
+      form.appendChild(input);
+    }
+
+    document.body.appendChild(form);
+    form.submit();
   };
 
   const handleDevLogin = async (e: React.FormEvent) => {

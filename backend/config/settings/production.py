@@ -4,6 +4,9 @@ from .base import *  # noqa: F401, F403
 
 DEBUG = False
 
+# Site ID — the reporadar-app.netlify.app Site record in Django admin
+SITE_ID = int(os.environ.get("SITE_ID", "2"))
+
 # Trust Netlify proxy headers for correct redirect URI construction
 USE_X_FORWARDED_HOST = True
 
@@ -18,6 +21,12 @@ SECURE_HSTS_PRELOAD = True
 
 # CORS — frontend on Netlify, API calls proxied but OAuth redirects are cross-origin
 CORS_ALLOW_CREDENTIALS = True
+
+# CSRF — trust the Netlify frontend and Railway backend origins
+CSRF_TRUSTED_ORIGINS = [
+    FRONTEND_URL,
+    "https://reporadar-production.up.railway.app",
+]
 
 # Whitenoise for static files (no nginx on Railway)
 MIDDLEWARE.insert(  # noqa: F405
