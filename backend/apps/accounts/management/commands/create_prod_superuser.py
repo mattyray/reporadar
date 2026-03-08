@@ -22,4 +22,4 @@ class Command(BaseCommand):
         user.set_password(options["password"])
         user.save()
         action = "Created" if created else "Updated"
-        self.stdout.write(self.success(f"{action} superuser: {user.email}"))
+        self.stdout.write(self.style.SUCCESS(f"{action} superuser: {user.email}"))
