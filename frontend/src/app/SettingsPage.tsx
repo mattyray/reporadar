@@ -1,11 +1,23 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 
 export default function SettingsPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const githubStatus = searchParams.get('github');
+
+  // After GitHub OAuth redirect, refetch profile to pick up github_connected
+  useEffect(() => {
+    if (githubStatus) {
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      // Clean up the URL
+      setSearchParams({}, { replace: true });
+    }
+  }, [githubStatus, queryClient, setSearchParams]);
 
   const { data: apiKeys } = useQuery({
     queryKey: ['apiKeys'],
@@ -55,7 +67,7 @@ export default function SettingsPage() {
                 </span>
               ) : (
                 <a
-                  href={`/_allauth/browser/v1/auth/provider/redirect?provider=github&callback_url=${encodeURIComponent(window.location.origin + '/auth/callback')}&process=connect`}
+                  href="https://reporadar-production.up.railway.app/api/auth/github/start/"
                   className="bg-gray-900 text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-gray-800"
                 >
                   Connect GitHub

@@ -13,7 +13,7 @@ logger = logging.getLogger("config.urls")
 
 @csrf_exempt
 def oauth_start(request):
-    """Start OAuth flow — skip allauth's 'Continue' confirmation page.
+    """Start Google OAuth flow — skip allauth's 'Continue' confirmation page.
     Forces POST method so allauth's OAuth2LoginView redirects to Google
     immediately instead of rendering an HTML confirmation form."""
     from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
@@ -23,6 +23,19 @@ def oauth_start(request):
     # Override the method so users go straight to Google.
     request.method = "POST"
     view = OAuth2LoginView.adapter_view(GoogleOAuth2Adapter)
+    return view(request)
+
+
+@csrf_exempt
+def github_start(request):
+    """Start GitHub OAuth flow — connect GitHub as a service to an existing account.
+    User must already be logged in (session from Google OAuth).
+    Skips allauth's confirmation page by forcing POST."""
+    from allauth.socialaccount.providers.github.views import GitHubOAuth2Adapter
+    from allauth.socialaccount.providers.oauth2.views import OAuth2LoginView
+
+    request.method = "POST"
+    view = OAuth2LoginView.adapter_view(GitHubOAuth2Adapter)
     return view(request)
 
 
@@ -58,6 +71,26 @@ def oauth_callback(request):
     return response
 
 
+def github_callback(request):
+    """Handle GitHub OAuth callback — connects GitHub to the logged-in user's account.
+    After success, redirects to the frontend settings page."""
+    from allauth.socialaccount.providers.github.views import GitHubOAuth2Adapter
+    from allauth.socialaccount.providers.oauth2.views import OAuth2CallbackView
+    from django.shortcuts import redirect
+
+    view = OAuth2CallbackView.adapter_view(GitHubOAuth2Adapter)
+    response = view(request)
+
+    frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:5173")
+
+    # allauth returns 302 on success
+    if response.status_code == 302 and request.user.is_authenticated:
+        return redirect(f"{frontend_url}/settings?github=connected")
+
+    # On failure, redirect to settings with error
+    return redirect(f"{frontend_url}/settings?github=error")
+
+
 @csrf_exempt
 def dev_login(request):
     """Dev-only email/password login via Django session. Never available in production."""
@@ -87,9 +120,11 @@ urlpatterns = [
     path("api/health/", lambda r: JsonResponse({"status": "ok"})),
     path("api/dev/login/", dev_login),
     path("api/auth/google/start/", oauth_start),
+    path("api/auth/github/start/", github_start),
     path("admin/", admin.site.urls),
     path("_allauth/", include("allauth.headless.urls")),
     path("accounts/google/login/callback/", oauth_callback),
+    path("accounts/github/login/callback/", github_callback),
     path("accounts/", include("allauth.urls")),  # Other allauth views
     path("api/search/", include("apps.search.urls")),
     path("api/prospects/", include("apps.prospects.urls")),

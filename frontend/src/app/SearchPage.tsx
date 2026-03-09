@@ -54,7 +54,7 @@ function SearchResultsList({ searchId }: { searchId: string }) {
             These are demo results. Connect GitHub to search 28M+ real repos.
           </p>
           <a
-            href={`/_allauth/browser/v1/auth/provider/redirect?provider=github&callback_url=${encodeURIComponent(window.location.origin + '/auth/callback')}&process=connect`}
+            href="https://reporadar-production.up.railway.app/api/auth/github/start/"
             className="flex-shrink-0 bg-gray-900 text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-gray-800"
           >
             Connect GitHub
