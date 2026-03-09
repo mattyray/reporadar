@@ -217,6 +217,22 @@ Also discovered that `HEADLESS_ONLY = True` in django-allauth blocks ALL browser
 
 ---
 
+### 2026-03-09 — The JWT Signing Key Nobody Told Me About
+
+Google OAuth was working — user could pick their Google account, allauth would process the callback, create/authenticate the user — but then the response was a 500 error. Every. Single. Time.
+
+The Railway logs showed the traceback: `ValueError: Could not deserialize key data` inside allauth's JWT token creation. The problem: allauth's `JWTTokenStrategy` defaults to **RS256** (asymmetric signing), which requires an RSA private key configured via `HEADLESS_JWT_PRIVATE_KEY`. We never set one. So allauth tried to parse an empty string as a PEM-encoded RSA key and exploded.
+
+The fix was one line: `HEADLESS_JWT_ALGORITHM = "HS256"`. Symmetric signing uses Django's `SECRET_KEY` automatically — no extra env vars, no key generation, no key rotation to worry about. For a single-server app with no token sharing between services, HS256 is perfectly fine.
+
+**The real lesson:** The OAuth flow had been working for commits — the "Third-Party Login Failure" from the previous session was actually a different bug (credential mismatch) that was already fixed. The 500 was a NEW bug introduced when we added the custom `oauth_callback` view that generates a JWT to pass to the frontend. The token exchange with Google was succeeding, but we crashed trying to package the result. Classic "last mile" failure.
+
+Also killed allauth's ugly unstyled "Sign In Via Google — Continue" confirmation page. allauth's `OAuth2LoginView` shows a confirmation form on GET but redirects to Google on POST. One line fix: `request.method = "POST"` before calling the view. Users now go straight from "Sign in with Google" to the Google account chooser — no intermediate page.
+
+**Content angle:** "The default that broke my OAuth — why allauth's JWT needs a one-line config change"
+
+---
+
 ## Phase 3: Contact Enrichment — [dates TBD]
 
 ---

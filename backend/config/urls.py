@@ -13,16 +13,15 @@ logger = logging.getLogger("config.urls")
 
 @csrf_exempt
 def oauth_start(request):
-    """Start OAuth flow — redirects browser to the provider (Google).
-    CSRF-exempt because this only initiates a redirect, no state is modified.
-    The actual auth happens via the provider's callback with proper state verification."""
+    """Start OAuth flow — skip allauth's 'Continue' confirmation page.
+    Forces POST method so allauth's OAuth2LoginView redirects to Google
+    immediately instead of rendering an HTML confirmation form."""
     from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
     from allauth.socialaccount.providers.oauth2.views import OAuth2LoginView
-    from django.middleware.csrf import get_token
 
-    # Set CSRF cookie for the callback
-    get_token(request)
-    # Delegate to allauth's OAuth2 login view
+    # allauth shows a confirmation page on GET, redirects to Google on POST.
+    # Override the method so users go straight to Google.
+    request.method = "POST"
     view = OAuth2LoginView.adapter_view(GoogleOAuth2Adapter)
     return view(request)
 
