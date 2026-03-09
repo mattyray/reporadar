@@ -56,7 +56,11 @@ def github_start(request):
         frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:5173")
         return redirect(f"{frontend_url}/login?error=auth_required")
 
+    # Tell allauth this is a "connect" (link to existing account), not a "login"
+    from django.http import QueryDict
     request.method = "POST"
+    request.POST = QueryDict(mutable=True)
+    request.POST["process"] = "connect"
     view = OAuth2LoginView.adapter_view(GitHubOAuth2Adapter)
     return view(request)
 
