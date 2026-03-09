@@ -28,20 +28,37 @@ def oauth_start(request):
 
 
 def oauth_debug_callback(request):
-    """Wrapper around allauth's Google OAuth callback that logs diagnostic info."""
+    """Wrapper around allauth's Google OAuth callback that logs diagnostic info.
+    Monkey-patches allauth's OAuth2Client to capture the token exchange error."""
+    import traceback as tb
     from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
+    from allauth.socialaccount.providers.oauth2 import client as oauth2_client
     from allauth.socialaccount.providers.oauth2.views import OAuth2CallbackView
 
     logger.error("=== OAuth Callback Debug ===")
     logger.error(f"Full URL: {request.build_absolute_uri()}")
     logger.error(f"Scheme: {request.scheme}")
     logger.error(f"Host: {request.get_host()}")
-    logger.error(f"META HTTP_X_FORWARDED_PROTO: {request.META.get('HTTP_X_FORWARDED_PROTO', 'NOT SET')}")
-    logger.error(f"META HTTP_X_FORWARDED_HOST: {request.META.get('HTTP_X_FORWARDED_HOST', 'NOT SET')}")
     logger.error(f"Session key: {request.session.session_key}")
     logger.error(f"Session data keys: {list(request.session.keys())}")
     logger.error(f"Cookies: {list(request.COOKIES.keys())}")
-    logger.error(f"Query params: {dict(request.GET)}")
+
+    # Monkey-patch the OAuth2Client.get_access_token to log the actual error
+    original_get_access_token = oauth2_client.OAuth2Client.get_access_token
+    def debug_get_access_token(self, code, pkce_code_verifier=None):
+        logger.error(f"=== Token Exchange ===")
+        logger.error(f"Token URL: {self.access_token_url}")
+        logger.error(f"Callback URL (redirect_uri): {self.callback_url}")
+        logger.error(f"Client ID: {self.consumer_key[:20]}...")
+        try:
+            result = original_get_access_token(self, code, pkce_code_verifier)
+            logger.error(f"Token exchange SUCCESS")
+            return result
+        except Exception as e:
+            logger.error(f"Token exchange FAILED: {type(e).__name__}: {e}")
+            logger.error(f"Traceback: {tb.format_exc()}")
+            raise
+    oauth2_client.OAuth2Client.get_access_token = debug_get_access_token
 
     try:
         view = OAuth2CallbackView.adapter_view(GoogleOAuth2Adapter)
@@ -51,6 +68,9 @@ def oauth_debug_callback(request):
     except Exception as e:
         logger.error(f"OAuth callback exception: {type(e).__name__}: {e}", exc_info=True)
         raise
+    finally:
+        # Restore original method
+        oauth2_client.OAuth2Client.get_access_token = original_get_access_token
 
 
 @csrf_exempt
