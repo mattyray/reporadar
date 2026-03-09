@@ -27,50 +27,36 @@ def oauth_start(request):
     return view(request)
 
 
-def oauth_debug_callback(request):
-    """Wrapper around allauth's Google OAuth callback that logs diagnostic info.
-    Monkey-patches allauth's OAuth2Client to capture the token exchange error."""
-    import traceback as tb
+def oauth_callback(request):
+    """Handle Google OAuth callback: let allauth process it, then redirect
+    to the frontend with a JWT token in the URL fragment.
+
+    The session cookie is on Railway's domain and can't be read by the
+    Netlify frontend, so we generate a JWT and pass it via URL."""
+    from urllib.parse import urlencode
+
     from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
-    from allauth.socialaccount.providers.oauth2 import client as oauth2_client
     from allauth.socialaccount.providers.oauth2.views import OAuth2CallbackView
+    from django.shortcuts import redirect
 
-    logger.error("=== OAuth Callback Debug ===")
-    logger.error(f"Full URL: {request.build_absolute_uri()}")
-    logger.error(f"Scheme: {request.scheme}")
-    logger.error(f"Host: {request.get_host()}")
-    logger.error(f"Session key: {request.session.session_key}")
-    logger.error(f"Session data keys: {list(request.session.keys())}")
-    logger.error(f"Cookies: {list(request.COOKIES.keys())}")
+    # Let allauth handle the OAuth callback (token exchange, user creation)
+    view = OAuth2CallbackView.adapter_view(GoogleOAuth2Adapter)
+    response = view(request)
 
-    # Monkey-patch the OAuth2Client.get_access_token to log the actual error
-    original_get_access_token = oauth2_client.OAuth2Client.get_access_token
-    def debug_get_access_token(self, code, pkce_code_verifier=None):
-        logger.error(f"=== Token Exchange ===")
-        logger.error(f"Token URL: {self.access_token_url}")
-        logger.error(f"Callback URL (redirect_uri): {self.callback_url}")
-        logger.error(f"Client ID: {self.consumer_key[:20]}...")
-        try:
-            result = original_get_access_token(self, code, pkce_code_verifier)
-            logger.error(f"Token exchange SUCCESS")
-            return result
-        except Exception as e:
-            logger.error(f"Token exchange FAILED: {type(e).__name__}: {e}")
-            logger.error(f"Traceback: {tb.format_exc()}")
-            raise
-    oauth2_client.OAuth2Client.get_access_token = debug_get_access_token
+    # If allauth succeeded (302 redirect) and user is now authenticated,
+    # generate a JWT and redirect to frontend with it
+    if response.status_code == 302 and request.user.is_authenticated:
+        from allauth.headless.tokens.strategies.jwt.strategy import JWTTokenStrategy
 
-    try:
-        view = OAuth2CallbackView.adapter_view(GoogleOAuth2Adapter)
-        response = view(request)
-        logger.error(f"Callback response status: {response.status_code}")
-        return response
-    except Exception as e:
-        logger.error(f"OAuth callback exception: {type(e).__name__}: {e}", exc_info=True)
-        raise
-    finally:
-        # Restore original method
-        oauth2_client.OAuth2Client.get_access_token = original_get_access_token
+        strategy = JWTTokenStrategy()
+        token_data = strategy.create_access_token(request)
+        frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:5173")
+        # Pass token as query param — frontend will grab it and store in localStorage
+        callback_url = f"{frontend_url}/auth/callback?{urlencode({'token': token_data})}"
+        return redirect(callback_url)
+
+    # If allauth didn't succeed, return its response as-is (error page)
+    return response
 
 
 @csrf_exempt
@@ -104,7 +90,7 @@ urlpatterns = [
     path("api/auth/google/start/", oauth_start),
     path("admin/", admin.site.urls),
     path("_allauth/", include("allauth.headless.urls")),
-    path("accounts/google/login/callback/", oauth_debug_callback),  # Debug wrapper
+    path("accounts/google/login/callback/", oauth_callback),
     path("accounts/", include("allauth.urls")),  # Other allauth views
     path("api/search/", include("apps.search.urls")),
     path("api/prospects/", include("apps.prospects.urls")),
