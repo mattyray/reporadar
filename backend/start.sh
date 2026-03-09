@@ -9,5 +9,9 @@ echo "DATABASE_URL is set: $([ -n "$DATABASE_URL" ] && echo 'yes' || echo 'NO')"
 echo "=== Running migrations ==="
 python manage.py migrate 2>&1
 
+echo "=== Starting Celery worker in background ==="
+celery -A config worker --beat -l info --concurrency=2 &
+echo "Celery started (PID: $!)"
+
 echo "=== Starting gunicorn on port $PORT ==="
 exec gunicorn config.wsgi:application --bind [::]:${PORT:-8000} --log-level info
