@@ -233,6 +233,44 @@ Also killed allauth's ugly unstyled "Sign In Via Google — Continue" confirmati
 
 ---
 
+### 2026-03-09 — GitHub OAuth: The Cross-Domain Session Problem
+
+After Google OAuth was working, next step was GitHub — but GitHub isn't a login provider, it's a "connected service." User logs in with Google, then clicks "Connect GitHub" to link their GitHub account for API access. Allauth calls this the `process=connect` flow.
+
+The problem: frontend is on Netlify (`reporadar-app.netlify.app`), backend is on Railway (`reporadar-production.up.railway.app`). Different domains = no shared cookies. When the user clicks "Connect GitHub," their browser goes to Railway, but Railway has no idea who they are — no session cookie, no authentication.
+
+**Attempt 1: Just send them to the endpoint.**
+Failed. Railway sees an anonymous user and allauth treats it as a signup/login, not a "connect." Even if the OAuth succeeds, the GitHub account gets created as a new user instead of being linked to the existing Google-authenticated account.
+
+**Attempt 2: Pass the JWT token in the URL.**
+The frontend stores a JWT (from Google login) in localStorage. We pass it as `?token=<jwt>` when navigating to Railway. The `github_start` view validates the JWT using allauth's `validate_access_token()` from `allauth.headless.tokens.strategies.jwt.internal`, then calls `django.contrib.auth.login()` to establish a Django session. Now Railway knows who the user is.
+
+This worked — the logs showed "authenticated user mnraynor90@gmail.com via JWT" — but GitHub still wasn't linking to the account.
+
+**Attempt 3: The missing `process=connect` parameter.**
+Allauth's OAuth views check for a `process` parameter to decide behavior. Default is `AuthProcess.LOGIN` (create/login a user). For linking, you need `AuthProcess.CONNECT`. The fix:
+
+```python
+request.POST = QueryDict(mutable=True)
+request.POST["process"] = "connect"
+```
+
+This tells allauth "this user is already logged in, link this GitHub account to their existing account." Without it, allauth either creates a duplicate user or fails with an email conflict.
+
+**Also hit: JWT expiration.**
+Allauth's default JWT lifetime is 300 seconds (5 minutes). Users who logged in more than 5 minutes ago got "invalid token" errors when trying to connect GitHub. Bumped to 86400 seconds (24 hours) with `HEADLESS_JWT_ACCESS_TOKEN_EXPIRES_IN = 86400`.
+
+**The full flow that works:**
+1. User logs in with Google → gets JWT → stored in localStorage
+2. User clicks "Connect GitHub" → browser goes to `railway.app/api/auth/github/start/?token=<jwt>`
+3. Backend validates JWT → logs user into Django session → sets `process=connect` → redirects to GitHub
+4. User authorizes on GitHub → callback hits Railway → allauth links GitHub to existing account
+5. Backend redirects to `netlify.app/settings?github=connected` → frontend refetches profile
+
+**Content angle:** "The cross-domain OAuth problem nobody warns you about — and the 3-layer fix"
+
+---
+
 ## Phase 3: Contact Enrichment — [dates TBD]
 
 ---
