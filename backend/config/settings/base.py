@@ -142,7 +142,8 @@ SOCIALACCOUNT_PROVIDERS = {
 }
 
 # Allauth headless mode (SPA — React frontend)
-HEADLESS_ONLY = True
+# HEADLESS_ONLY is intentionally False so browser-based OAuth redirects work.
+# The headless API at /_allauth/ still works regardless of this setting.
 HEADLESS_TOKEN_STRATEGY = "allauth.headless.tokens.strategies.jwt.strategy.JWTTokenStrategy"
 
 # Celery

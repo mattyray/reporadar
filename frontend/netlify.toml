@@ -4,18 +4,18 @@
 
 [[redirects]]
   from = "/api/*"
-  to = "https://YOUR-RAILWAY-APP.up.railway.app/api/:splat"
+  to = "https://reporadar-production.up.railway.app/api/:splat"
   status = 200
 
 [[redirects]]
   from = "/_allauth/*"
-  to = "https://YOUR-RAILWAY-APP.up.railway.app/_allauth/:splat"
+  to = "https://reporadar-production.up.railway.app/_allauth/:splat"
   status = 200
 
 # OAuth callbacks (allauth uses /accounts/ path for provider callbacks)
 [[redirects]]
   from = "/accounts/*"
-  to = "https://YOUR-RAILWAY-APP.up.railway.app/accounts/:splat"
+  to = "https://reporadar-production.up.railway.app/accounts/:splat"
   status = 200
 
 # SPA fallback — all non-API routes go to index.html

@@ -55,6 +55,7 @@ urlpatterns = [
     path("api/auth/google/start/", oauth_start),
     path("admin/", admin.site.urls),
     path("_allauth/", include("allauth.headless.urls")),
+    path("accounts/", include("allauth.urls")),  # OAuth callback handler
     path("api/search/", include("apps.search.urls")),
     path("api/prospects/", include("apps.prospects.urls")),
     path("api/accounts/", include("apps.accounts.urls")),

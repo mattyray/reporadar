@@ -155,6 +155,68 @@ Added the entire jobs feature — new Django app, ATS provider, Celery tasks, 3 
 
 ---
 
+## Deployment — March 2026
+
+### 2026-03-08 — Railway Deployment: Four Bugs Stacked on Top of Each Other
+
+Deploying the Django backend to Railway took ~12 iterations. Not because any single problem was hard, but because four separate issues were stacked on top of each other, each one masking the next. Here's every problem in the order I hit them, and how each was fixed.
+
+**Bug 1: "host 'db' not found"**
+
+The app crashed immediately on Railway because `DATABASE_URL` defaulted to `postgresql://reporadar:reporadar@db:5432/reporadar` — that's the Docker Compose hostname from local dev. Railway doesn't have a container called `db`. Fix: set `DATABASE_URL` as a Railway env var pointing to the actual Postgres instance (`turntable.proxy.rlwy.net:22079`). Also had to set the root directory to `/backend` so Railway knew where the Dockerfile was.
+
+**Bug 2: Docker cache serving stale code**
+
+Pushed code fixes but the deploy logs showed every Docker layer as `CACHED` — Railway was reusing the old image. The `COPY . .` layer was cached because Docker didn't detect changes (layer cache is content-addressed, but Railway's builder was aggressively caching). Fix: added a `# Cache bust: 2026-03-08` comment to the Dockerfile to invalidate the layer cache. Hacky, but it worked immediately.
+
+**Bug 3: Healthcheck failing — three sub-problems**
+
+Railway's healthcheck kept marking the service as unhealthy even though gunicorn was starting fine. Three things were wrong simultaneously:
+
+1. `SECURE_SSL_REDIRECT = True` in production.py — Railway's internal healthcheck sends HTTP requests, and Django was redirecting them to HTTPS, which the healthcheck interpreted as failure. Fix: removed `SECURE_SSL_REDIRECT` entirely. Railway handles SSL termination at the proxy layer, so Django should never redirect to HTTPS itself.
+
+2. Internal Railway networking (`postgres.railway.internal`) DNS wasn't resolving — the app couldn't finish startup because it was hanging on database connections. Fix: switched to public database/Redis URLs. Internal networking requires specific Railway networking configuration that wasn't set up.
+
+3. Port mismatch — Railway auto-assigns a port via the `PORT` env var (was 8080), but the public domain was configured for a different port. Fix: made gunicorn bind to `[::]:${PORT:-8000}` to respect whatever port Railway assigns. The `[::]` syntax binds both IPv4 and IPv6.
+
+After fighting all three, I removed the healthcheck from `railway.json` entirely to unblock the deploy. The service started fine — it was just the healthcheck that couldn't reach it.
+
+**Bug 4: 400 Bad Request on every endpoint**
+
+Service was running, port was right, but hitting `/api/health/` returned 400. This is Django's `ALLOWED_HOSTS` validation — if the incoming `Host` header doesn't match an entry in `ALLOWED_HOSTS`, Django returns 400 (not 403, not 500 — 400). Setting `ALLOWED_HOSTS=*` should have worked but didn't reliably. Fix: set `ALLOWED_HOSTS=reporadar-production.up.railway.app` with the explicit domain. This is also better security practice — the `*` wildcard disables Host header validation entirely.
+
+**What I Learned**
+
+The real lesson: when debugging a deployment that isn't working, you might be looking at problem #3 while problems #1 and #2 are still unfixed underneath. Each fix revealed the next bug. The order matters — you can't debug a 400 response if the service isn't even starting, and you can't debug startup if Docker is serving cached code from three commits ago.
+
+Also learned: Railway-specific gotchas aren't well-documented. The SSL redirect + healthcheck interaction, the internal networking DNS requirements, and the port assignment behavior were all trial-and-error discoveries.
+
+**Production deployment config that works:**
+- `railway.json`: DOCKERFILE builder, `bash start.sh` as start command, no healthcheck (for now)
+- `start.sh`: runs migrations, then `exec gunicorn config.wsgi:application --bind [::]:${PORT:-8000}`
+- `production.py`: no `SECURE_SSL_REDIRECT`, has `SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")`, WhiteNoise for static files
+- Env vars: explicit `ALLOWED_HOSTS` (not `*`), public database/Redis URLs, `DJANGO_SETTINGS_MODULE=config.settings.production`
+
+**Content angle:** "Four bugs stacked on top of each other — what deploying Django to Railway actually looks like"
+
+---
+
+### 2026-03-08 — Netlify Frontend + Google OAuth: The Proxy Trap
+
+Deployed the React frontend to Netlify (`reporadar-app.netlify.app`). The `netlify.toml` proxies `/api/*` and `/_allauth/*` to the Railway backend using `status = 200` redirects. This works great for normal API calls, but completely breaks OAuth.
+
+**The trap:** Netlify's `status = 200` proxy follows HTTP redirects server-side. When allauth returns a 302 redirect to Google's OAuth page, Netlify follows that redirect itself and returns the Google HTML to the browser as if it were a 200 response from the original URL. The browser never sees the 302, never navigates to Google, and the OAuth flow is dead.
+
+**Fix:** Skip the Netlify proxy entirely for OAuth. The "Sign in with Google" button sends the browser directly to `https://reporadar-production.up.railway.app/api/auth/google/start/`. This means the browser navigates to Railway, gets the 302 to Google, and the OAuth flow works as designed.
+
+Also discovered that `HEADLESS_ONLY = True` in django-allauth blocks ALL browser-based views, including `OAuth2LoginView`. This is correct for a headless SPA, but it means you can't use allauth's standard OAuth flow at all. Had to remove it and include `allauth.urls` for the callback handler.
+
+**Current status:** Flow reaches Google account chooser. User can select their account. But the callback to Railway returns "Third-Party Login Failure" — debugging the token exchange next.
+
+**Content angle:** "The proxy trap — why your OAuth flow breaks on Netlify (and how to fix it)"
+
+---
+
 ## Phase 3: Contact Enrichment — [dates TBD]
 
 ---
@@ -189,3 +251,4 @@ Added the entire jobs feature — new Django app, ATS provider, Celery tasks, 3 
 | "The free APIs that power a job board nobody's built yet" | 2026-03-07 ATS integration | High — unique angle, practical |
 | "I thought my app already existed" | 2026-03-07 competitive landscape | Medium — founder story |
 | "How TDD let me add a major feature without touching a single existing test" | 2026-03-07 132 tests | Medium — engineering credibility |
+| "Four bugs stacked on top of each other — deploying Django to Railway" | 2026-03-08 Railway deployment | High — relatable war story |
