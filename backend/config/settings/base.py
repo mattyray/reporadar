@@ -153,6 +153,7 @@ SOCIALACCOUNT_PROVIDERS = {
 # HEADLESS_ONLY is intentionally False so browser-based OAuth redirects work.
 # The headless API at /_allauth/ still works regardless of this setting.
 HEADLESS_TOKEN_STRATEGY = "allauth.headless.tokens.strategies.jwt.strategy.JWTTokenStrategy"
+HEADLESS_JWT_ALGORITHM = "HS256"  # Symmetric — uses SECRET_KEY, no RSA key needed
 
 # Celery
 CELERY_BROKER_URL = os.environ.get("REDIS_URL", "redis://redis:6379/0")
