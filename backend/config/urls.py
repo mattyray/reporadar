@@ -1,4 +1,5 @@
 import json
+import logging
 
 from django.conf import settings
 from django.contrib import admin
@@ -6,6 +7,8 @@ from django.contrib.auth import authenticate
 from django.http import JsonResponse
 from django.urls import include, path
 from django.views.decorators.csrf import csrf_exempt
+
+logger = logging.getLogger("config.urls")
 
 
 @csrf_exempt
@@ -22,6 +25,32 @@ def oauth_start(request):
     # Delegate to allauth's OAuth2 login view
     view = OAuth2LoginView.adapter_view(GoogleOAuth2Adapter)
     return view(request)
+
+
+def oauth_debug_callback(request):
+    """Wrapper around allauth's Google OAuth callback that logs diagnostic info."""
+    from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
+    from allauth.socialaccount.providers.oauth2.views import OAuth2CallbackView
+
+    logger.error("=== OAuth Callback Debug ===")
+    logger.error(f"Full URL: {request.build_absolute_uri()}")
+    logger.error(f"Scheme: {request.scheme}")
+    logger.error(f"Host: {request.get_host()}")
+    logger.error(f"META HTTP_X_FORWARDED_PROTO: {request.META.get('HTTP_X_FORWARDED_PROTO', 'NOT SET')}")
+    logger.error(f"META HTTP_X_FORWARDED_HOST: {request.META.get('HTTP_X_FORWARDED_HOST', 'NOT SET')}")
+    logger.error(f"Session key: {request.session.session_key}")
+    logger.error(f"Session data keys: {list(request.session.keys())}")
+    logger.error(f"Cookies: {list(request.COOKIES.keys())}")
+    logger.error(f"Query params: {dict(request.GET)}")
+
+    try:
+        view = OAuth2CallbackView.adapter_view(GoogleOAuth2Adapter)
+        response = view(request)
+        logger.error(f"Callback response status: {response.status_code}")
+        return response
+    except Exception as e:
+        logger.error(f"OAuth callback exception: {type(e).__name__}: {e}", exc_info=True)
+        raise
 
 
 @csrf_exempt
@@ -55,7 +84,8 @@ urlpatterns = [
     path("api/auth/google/start/", oauth_start),
     path("admin/", admin.site.urls),
     path("_allauth/", include("allauth.headless.urls")),
-    path("accounts/", include("allauth.urls")),  # OAuth callback handler
+    path("accounts/google/login/callback/", oauth_debug_callback),  # Debug wrapper
+    path("accounts/", include("allauth.urls")),  # Other allauth views
     path("api/search/", include("apps.search.urls")),
     path("api/prospects/", include("apps.prospects.urls")),
     path("api/accounts/", include("apps.accounts.urls")),

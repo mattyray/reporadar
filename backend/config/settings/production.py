@@ -86,5 +86,10 @@ LOGGING = {
             "level": "DEBUG",
             "propagate": False,
         },
+        "config.urls": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
     },
 }
