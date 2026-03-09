@@ -15,7 +15,7 @@ export default function SetupChecklist() {
   const remaining: { label: string; action?: string; href?: string }[] = [];
 
   if (!user.github_connected) {
-    remaining.push({ label: 'Connect GitHub for live search', href: 'https://reporadar-production.up.railway.app/api/auth/github/start/' });
+    remaining.push({ label: 'Connect GitHub for live search', href: `https://reporadar-production.up.railway.app/api/auth/github/start/?token=${localStorage.getItem('auth_token') || ''}` });
   }
   if (!resumeProfile) {
     remaining.push({ label: 'Upload resume for auto-detect', action: 'Upload above' });

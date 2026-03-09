@@ -29,10 +29,32 @@ def oauth_start(request):
 @csrf_exempt
 def github_start(request):
     """Start GitHub OAuth flow — connect GitHub as a service to an existing account.
-    User must already be logged in (session from Google OAuth).
+    Accepts ?token=<jwt> to authenticate the user and create a Railway session,
+    since the frontend is on Netlify (different domain, no shared cookies).
     Skips allauth's confirmation page by forcing POST."""
     from allauth.socialaccount.providers.github.views import GitHubOAuth2Adapter
     from allauth.socialaccount.providers.oauth2.views import OAuth2LoginView
+
+    # If JWT token is passed, verify it and log user into a Django session
+    # so allauth can link GitHub to their account.
+    # Needed because frontend is on Netlify (different domain, no shared session cookie).
+    jwt_token = request.GET.get("token")
+    if jwt_token and not request.user.is_authenticated:
+        from allauth.headless.tokens.strategies.jwt.internal import validate_access_token
+        from django.contrib.auth import login
+
+        result = validate_access_token(jwt_token)
+        if result:
+            user, _payload = result
+            login(request, user, backend="django.contrib.auth.backends.ModelBackend")
+            logger.info("GitHub start: authenticated user %s via JWT", user.email)
+        else:
+            logger.warning("GitHub start: invalid or expired JWT token")
+
+    if not request.user.is_authenticated:
+        from django.shortcuts import redirect
+        frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:5173")
+        return redirect(f"{frontend_url}/login?error=auth_required")
 
     request.method = "POST"
     view = OAuth2LoginView.adapter_view(GitHubOAuth2Adapter)

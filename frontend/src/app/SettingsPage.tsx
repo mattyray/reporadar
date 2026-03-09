@@ -67,7 +67,7 @@ export default function SettingsPage() {
                 </span>
               ) : (
                 <a
-                  href="https://reporadar-production.up.railway.app/api/auth/github/start/"
+                  href={`https://reporadar-production.up.railway.app/api/auth/github/start/?token=${localStorage.getItem('auth_token') || ''}`}
                   className="bg-gray-900 text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-gray-800"
                 >
                   Connect GitHub

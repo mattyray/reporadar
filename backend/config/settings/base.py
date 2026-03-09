@@ -154,6 +154,7 @@ SOCIALACCOUNT_PROVIDERS = {
 # The headless API at /_allauth/ still works regardless of this setting.
 HEADLESS_TOKEN_STRATEGY = "allauth.headless.tokens.strategies.jwt.strategy.JWTTokenStrategy"
 HEADLESS_JWT_ALGORITHM = "HS256"  # Symmetric — uses SECRET_KEY, no RSA key needed
+HEADLESS_JWT_ACCESS_TOKEN_EXPIRES_IN = 86400  # 24 hours (default was 300s / 5 min)
 
 # Celery
 CELERY_BROKER_URL = os.environ.get("REDIS_URL", "redis://redis:6379/0")
