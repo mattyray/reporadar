@@ -5,6 +5,7 @@ import type { SearchConfig, SearchQuery, SearchResult, ResumeProfile } from '../
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import TechChipSelector from '../components/TechChipSelector';
+import TechChip from '../components/TechChip';
 import ResumeUploadBanner from '../components/ResumeUploadBanner';
 import SetupChecklist from '../components/SetupChecklist';
 
@@ -124,11 +125,21 @@ function SearchResultsList({ searchId }: { searchId: string }) {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex flex-wrap gap-1">
+            <div className="flex flex-wrap gap-1 items-center">
               {r.matched_stack.map((tech) => (
-                <span key={tech} className="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded text-xs">
-                  {tech}
-                </span>
+                <TechChip key={tech} name={tech} category="backend" />
+              ))}
+              {r.matched_ai_tools?.length > 0 && r.matched_stack.length > 0 && (
+                <span className="text-gray-300 mx-0.5">|</span>
+              )}
+              {r.matched_ai_tools?.map((tool) => (
+                <TechChip key={tool} name={tool} category="ai_tool" />
+              ))}
+              {r.matched_infra?.length > 0 && (r.matched_stack.length > 0 || r.matched_ai_tools?.length > 0) && (
+                <span className="text-gray-300 mx-0.5">|</span>
+              )}
+              {r.matched_infra?.map((item) => (
+                <TechChip key={item} name={item} category="infra" />
               ))}
             </div>
             <span className="text-sm font-semibold text-indigo-600">{r.match_score}%</span>

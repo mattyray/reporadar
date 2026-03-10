@@ -42,6 +42,8 @@ export interface SearchResult {
   organization_id: number;
   match_score: number;
   matched_stack: string[];
+  matched_ai_tools: string[];
+  matched_infra: string[];
   organization_name: string;
   organization_login: string;
   organization_avatar: string;
@@ -76,6 +78,18 @@ export interface Repo {
   has_claude_md: boolean;
   has_cursor_config: boolean;
   has_copilot_config: boolean;
+  has_windsurf_config: boolean;
+  has_aider_config: boolean;
+  has_codeium_config: boolean;
+  has_continue_config: boolean;
+  has_bolt_config: boolean;
+  has_v0_config: boolean;
+  has_lovable_config: boolean;
+  has_idx_config: boolean;
+  has_amazonq_config: boolean;
+  has_cline_config: boolean;
+  has_roo_config: boolean;
+  has_codex_config: boolean;
   has_docker: boolean;
   has_ci_cd: boolean;
   has_tests: boolean;

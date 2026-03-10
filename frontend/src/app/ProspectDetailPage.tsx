@@ -2,6 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import type { Repo, Contributor, Contact, JobListing } from '../types/api';
+import TechChip, { groupByCategory } from '../components/TechChip';
 
 export default function ProspectDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -60,12 +61,12 @@ export default function ProspectDetailPage() {
   const jobs: JobListing[] = jobsData?.results ?? [];
   const hasJobs = jobs.length > 0;
 
-  // Aggregate tech stack across all repos
-  const allTechs = new Set<string>();
+  // Aggregate tech stack across all repos, grouped by category
+  const allDetections: Array<{ technology_name: string; category: string }> = [];
   org.repos?.forEach((repo: Repo) => {
-    repo.stack_detections?.forEach((d) => allTechs.add(d.technology_name));
+    repo.stack_detections?.forEach((d) => allDetections.push(d));
   });
-  const techStack = Array.from(allTechs);
+  const grouped = groupByCategory(allDetections);
 
   return (
     <div className="space-y-6">
@@ -101,12 +102,22 @@ export default function ProspectDetailPage() {
                   GitHub
                 </a>
               </div>
-              {techStack.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-3">
-                  {techStack.map((tech) => (
-                    <span key={tech} className="px-2.5 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-medium">
-                      {tech}
-                    </span>
+              {(grouped.stack.length > 0 || grouped.aiTools.length > 0 || grouped.infra.length > 0) && (
+                <div className="flex flex-wrap gap-1.5 items-center mt-3">
+                  {grouped.stack.map((tech) => (
+                    <TechChip key={tech} name={tech} category="backend" size="md" />
+                  ))}
+                  {grouped.aiTools.length > 0 && grouped.stack.length > 0 && (
+                    <span className="text-gray-300 mx-0.5">|</span>
+                  )}
+                  {grouped.aiTools.map((tool) => (
+                    <TechChip key={tool} name={tool} category="ai_tool" size="md" />
+                  ))}
+                  {grouped.infra.length > 0 && (grouped.stack.length > 0 || grouped.aiTools.length > 0) && (
+                    <span className="text-gray-300 mx-0.5">|</span>
+                  )}
+                  {grouped.infra.map((item) => (
+                    <TechChip key={item} name={item} category="infra" size="md" />
                   ))}
                 </div>
               )}
@@ -233,17 +244,29 @@ export default function ProspectDetailPage() {
                 {repo.description && (
                   <p className="text-sm text-gray-600 mt-1">{repo.description}</p>
                 )}
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {repo.stack_detections?.map((d) => (
-                    <span key={d.technology_name} className="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded text-xs">
-                      {d.technology_name}
-                    </span>
-                  ))}
-                  {repo.has_claude_md && <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded text-xs">Claude</span>}
-                  {repo.has_cursor_config && <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded text-xs">Cursor</span>}
-                  {repo.has_docker && <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">Docker</span>}
-                  {repo.has_ci_cd && <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">CI/CD</span>}
-                  {repo.has_tests && <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">Tests</span>}
+                <div className="flex flex-wrap gap-1 items-center mt-2">
+                  {(() => {
+                    const g = groupByCategory(repo.stack_detections || []);
+                    return (
+                      <>
+                        {g.stack.map((tech) => (
+                          <TechChip key={tech} name={tech} category="backend" />
+                        ))}
+                        {g.aiTools.length > 0 && g.stack.length > 0 && (
+                          <span className="text-gray-300 mx-0.5">|</span>
+                        )}
+                        {g.aiTools.map((tool) => (
+                          <TechChip key={tool} name={tool} category="ai_tool" />
+                        ))}
+                        {(repo.has_docker || repo.has_ci_cd || repo.has_tests) && (g.stack.length > 0 || g.aiTools.length > 0) && (
+                          <span className="text-gray-300 mx-0.5">|</span>
+                        )}
+                        {repo.has_docker && <TechChip name="Docker" category="infra" />}
+                        {repo.has_ci_cd && <TechChip name="CI/CD" category="infra" />}
+                        {repo.has_tests && <TechChip name="Tests" category="infra" />}
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             ))}
