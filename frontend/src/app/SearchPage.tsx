@@ -8,7 +8,31 @@ import TechChipSelector from '../components/TechChipSelector';
 import ResumeUploadBanner from '../components/ResumeUploadBanner';
 import SetupChecklist from '../components/SetupChecklist';
 
-function SearchStatus({ search }: { search: SearchQuery }) {
+function formatTimeAgo(dateStr: string): string {
+  const now = new Date();
+  const date = new Date(dateStr);
+  const diffMs = now.getTime() - date.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return 'just now';
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+  const diffDay = Math.floor(diffHr / 24);
+  if (diffDay < 7) return `${diffDay}d ago`;
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function getSearchLabel(search: SearchQuery): string {
+  if (search.name) return search.name;
+  const techs = search.config?.stack_requirements?.must_have;
+  if (techs?.length) {
+    const display = techs.slice(0, 3).join(', ');
+    return techs.length > 3 ? `${display} +${techs.length - 3}` : display;
+  }
+  return 'Search';
+}
+
+function SearchStatus({ search, compact }: { search: SearchQuery; compact?: boolean }) {
   const statusColors: Record<string, string> = {
     pending: 'bg-yellow-100 text-yellow-800',
     running: 'bg-blue-100 text-blue-800',
@@ -16,12 +40,29 @@ function SearchStatus({ search }: { search: SearchQuery }) {
     failed: 'bg-red-100 text-red-800',
   };
 
+  if (compact) {
+    return (
+      <div className="flex items-center justify-between bg-white rounded-lg shadow p-3 hover:bg-gray-50">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="min-w-0">
+            <span className="font-medium text-gray-900 text-sm">{getSearchLabel(search)}</span>
+            <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5">
+              <span>{search.total_orgs_found} orgs</span>
+              <span>{formatTimeAgo(search.created_at)}</span>
+            </div>
+          </div>
+        </div>
+        <span className={`px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ${statusColors[search.status]}`}>
+          {search.status}
+        </span>
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-center justify-between bg-white rounded-lg shadow p-4">
       <div>
-        <span className="font-medium text-gray-900">
-          {search.name || 'Search'}
-        </span>
+        <span className="font-medium text-gray-900">{getSearchLabel(search)}</span>
         <span className="ml-2 text-sm text-gray-500">
           {search.total_orgs_found} orgs found
         </span>
@@ -259,7 +300,7 @@ export default function SearchPage() {
         {/* Search button */}
         <button
           onClick={handleSearch}
-          disabled={selectedTechs.length === 0 || createSearch.isPending}
+          disabled={selectedTechs.length === 0 || createSearch.isPending || (activeSearch && (activeSearch.status === 'pending' || activeSearch.status === 'running'))}
           className="mt-4 w-full bg-indigo-600 text-white rounded-md py-2.5 px-4 font-medium hover:bg-indigo-700 disabled:opacity-50 cursor-pointer"
         >
           {createSearch.isPending
@@ -313,19 +354,27 @@ export default function SearchPage() {
         </div>
       )}
 
-      {/* Past searches */}
-      {history?.results && history.results.length > 0 && (
+      {/* Past searches — show last 5, exclude currently active */}
+      {history?.results && history.results.filter((s: SearchQuery) => s.id !== activeSearchId).length > 0 && (
         <div className="space-y-2">
-          <h3 className="text-lg font-semibold text-gray-900">Past Searches</h3>
-          {history.results.map((s: SearchQuery) => (
-            <div
-              key={s.id}
-              onClick={() => setActiveSearchId(s.id)}
-              className="cursor-pointer"
-            >
-              <SearchStatus search={s} />
-            </div>
-          ))}
+          <h3 className="text-sm font-semibold text-gray-900">Past Searches</h3>
+          {history.results
+            .filter((s: SearchQuery) => s.id !== activeSearchId)
+            .slice(0, 5)
+            .map((s: SearchQuery) => (
+              <div
+                key={s.id}
+                onClick={() => setActiveSearchId(s.id)}
+                className="cursor-pointer"
+              >
+                <SearchStatus search={s} compact />
+              </div>
+            ))}
+          {history.results.filter((s: SearchQuery) => s.id !== activeSearchId).length > 5 && (
+            <p className="text-xs text-gray-400 text-center pt-1">
+              Showing 5 of {history.results.filter((s: SearchQuery) => s.id !== activeSearchId).length} searches
+            </p>
+          )}
         </div>
       )}
     </div>
