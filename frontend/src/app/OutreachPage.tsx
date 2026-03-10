@@ -70,7 +70,7 @@ export default function OutreachPage() {
   const initialOrgId = searchParams.get('orgId') || '';
 
   const [orgId, setOrgId] = useState(initialOrgId);
-  const [messageType, setMessageType] = useState('cold_email');
+  const [messageType, setMessageType] = useState('email');
   const [generatedMessage, setGeneratedMessage] = useState<OutreachMessage | null>(null);
 
   const { data: prospects } = useQuery({
@@ -144,9 +144,9 @@ export default function OutreachPage() {
               onChange={(e) => setMessageType(e.target.value)}
               className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
             >
-              <option value="cold_email">Cold Email</option>
-              <option value="linkedin_message">LinkedIn Message</option>
-              <option value="intro_request">Intro Request</option>
+              <option value="email">Cold Email</option>
+              <option value="linkedin_dm">LinkedIn Message</option>
+              <option value="other">Other</option>
             </select>
           </div>
         </div>

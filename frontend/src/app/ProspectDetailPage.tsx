@@ -60,6 +60,13 @@ export default function ProspectDetailPage() {
   const jobs: JobListing[] = jobsData?.results ?? [];
   const hasJobs = jobs.length > 0;
 
+  // Aggregate tech stack across all repos
+  const allTechs = new Set<string>();
+  org.repos?.forEach((repo: Repo) => {
+    repo.stack_detections?.forEach((d) => allTechs.add(d.technology_name));
+  });
+  const techStack = Array.from(allTechs);
+
   return (
     <div className="space-y-6">
       <button onClick={() => navigate(-1)} className="text-sm text-indigo-600 hover:underline cursor-pointer">
@@ -94,6 +101,15 @@ export default function ProspectDetailPage() {
                   GitHub
                 </a>
               </div>
+              {techStack.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-3">
+                  {techStack.map((tech) => (
+                    <span key={tech} className="px-2.5 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-medium">
+                      {tech}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
