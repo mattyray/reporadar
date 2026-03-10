@@ -71,20 +71,18 @@ def scan_search_results(self, search_id: str):
                     detected_techs = list(
                         repo.stack_detections.values_list("technology_name", flat=True)
                     )
+                    ai_tool_count = repo.stack_detections.filter(category="ai_tool").count()
                     score = calculate_total_score(
                         detected_techs=detected_techs,
                         must_have=must_have,
                         nice_to_have=nice_to_have,
-                        has_claude_md=repo.has_claude_md,
-                        has_cursor_config=repo.has_cursor_config,
-                        has_copilot_config=repo.has_copilot_config,
-                        has_windsurf_config=repo.has_windsurf_config,
                         has_docker=repo.has_docker,
                         has_ci_cd=repo.has_ci_cd,
                         has_tests=repo.has_tests,
                         has_deployment_config=repo.has_deployment_config,
                         last_pushed_at=repo.last_pushed_at,
                         contributor_count=repo.contributors.count(),
+                        ai_tool_count=ai_tool_count,
                     )
 
                     SearchResult.objects.update_or_create(
@@ -152,20 +150,18 @@ def _search_local_database(search):
         detected_techs = list(
             repo.stack_detections.values_list("technology_name", flat=True)
         )
+        ai_tool_count = repo.stack_detections.filter(category="ai_tool").count()
         score = calculate_total_score(
             detected_techs=detected_techs,
             must_have=must_have,
             nice_to_have=nice_to_have,
-            has_claude_md=repo.has_claude_md,
-            has_cursor_config=repo.has_cursor_config,
-            has_copilot_config=repo.has_copilot_config,
-            has_windsurf_config=repo.has_windsurf_config,
             has_docker=repo.has_docker,
             has_ci_cd=repo.has_ci_cd,
             has_tests=repo.has_tests,
             has_deployment_config=repo.has_deployment_config,
             last_pushed_at=repo.last_pushed_at,
             contributor_count=repo.contributors.count(),
+            ai_tool_count=ai_tool_count,
         )
 
         SearchResult.objects.update_or_create(
@@ -204,8 +200,20 @@ def _build_search_queries(must_have, ai_signals, filters):
     # Search for AI tool signal files
     signal_file_map = {
         "CLAUDE.md": "filename:CLAUDE.md",
-        ".cursor": "path:.cursor",
+        ".cursor": "filename:.cursorrules",
         ".github/copilot": "filename:copilot-instructions.md",
+        ".windsurfrules": "filename:.windsurfrules",
+        ".aider": "filename:.aider.conf.yml",
+        ".codeium": "path:.codeium",
+        ".continue": "path:.continue",
+        ".bolt": "path:.bolt",
+        ".v0": "path:.v0",
+        ".lovable": "path:.lovable",
+        ".idx": "path:.idx",
+        ".amazonq": "path:.amazonq",
+        ".cline": "filename:.clinerules",
+        ".roo": "filename:.roorules",
+        "codex.md": "filename:codex.md",
     }
     for signal in ai_signals:
         query = signal_file_map.get(signal)
@@ -287,13 +295,60 @@ def _process_repo(client, owner_data, repo_data):
             defaults={"category": category, "source_file": "detected"},
         )
 
-    # Check AI tool signals
-    repo.has_claude_md = client.check_file_exists(owner_login, repo_name, "CLAUDE.md")
-    repo.has_cursor_config = client.check_file_exists(owner_login, repo_name, ".cursor")
-    repo.has_copilot_config = client.check_file_exists(
-        owner_login, repo_name, ".github/copilot-instructions.md"
-    )
-    repo.has_windsurf_config = client.check_file_exists(owner_login, repo_name, ".windsurfrules")
+    # Detect from GitHub language field (free — no extra API calls)
+    repo_language = repo_data.get("language")
+    if repo_language:
+        from apps.search.detection import GITHUB_LANGUAGE_MAP
+        mapped = GITHUB_LANGUAGE_MAP.get(repo_language)
+        if mapped:
+            tech_name, category = mapped
+            RepoStackDetection.objects.update_or_create(
+                repo=repo,
+                technology_name=tech_name,
+                defaults={"category": category, "source_file": "github_language"},
+            )
+
+    # Detect from GitHub topics (free — no extra API calls)
+    topics = repo_data.get("topics", [])
+    if topics:
+        from apps.search.detection import GITHUB_TOPIC_MAP
+        for topic in topics:
+            mapped = GITHUB_TOPIC_MAP.get(topic.lower())
+            if mapped:
+                tech_name, category = mapped
+                RepoStackDetection.objects.update_or_create(
+                    repo=repo,
+                    technology_name=tech_name,
+                    defaults={"category": category, "source_file": "github_topic"},
+                )
+
+    # Check AI tool signals — each maps to (model_field, display_name, file_paths_to_check)
+    AI_TOOL_CHECKS = [
+        ("has_claude_md", "Claude Code", ["CLAUDE.md", ".claude/settings.json"]),
+        ("has_cursor_config", "Cursor", [".cursor", ".cursorrules", ".cursorignore"]),
+        ("has_copilot_config", "GitHub Copilot", [".github/copilot-instructions.md", ".github/copilot"]),
+        ("has_windsurf_config", "Windsurf", [".windsurfrules"]),
+        ("has_aider_config", "Aider", [".aider.conf.yml", ".aider"]),
+        ("has_codeium_config", "Codeium", [".codeium"]),
+        ("has_continue_config", "Continue.dev", [".continue/config.json"]),
+        ("has_bolt_config", "Bolt.new", [".bolt"]),
+        ("has_v0_config", "Vercel v0", [".v0"]),
+        ("has_lovable_config", "Lovable", [".lovable"]),
+        ("has_idx_config", "Google IDX", [".idx"]),
+        ("has_amazonq_config", "Amazon Q", [".amazonq"]),
+        ("has_cline_config", "Cline", [".cline", ".clinerules"]),
+        ("has_roo_config", "Roo Code", [".roo", ".roorules"]),
+        ("has_codex_config", "Codex", ["codex.md", ".codex"]),
+    ]
+    for field_name, tool_name, paths in AI_TOOL_CHECKS:
+        found = any(client.check_file_exists(owner_login, repo_name, p) for p in paths)
+        setattr(repo, field_name, found)
+        if found:
+            RepoStackDetection.objects.update_or_create(
+                repo=repo,
+                technology_name=tool_name,
+                defaults={"category": "ai_tool", "source_file": "config_file"},
+            )
 
     # Check infrastructure signals
     repo.has_docker = (

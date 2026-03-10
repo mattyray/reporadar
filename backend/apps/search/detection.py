@@ -107,6 +107,136 @@ def detect_stack(files: dict[str, str]) -> list[tuple[str, str]]:
     return unique_techs
 
 
+# --- GitHub language field → (technology_name, category) ---
+# Used as fallback when no dependency file is found for that language.
+GITHUB_LANGUAGE_MAP = {
+    "Python": ("Python", "backend"),
+    "JavaScript": ("JavaScript", "frontend"),
+    "TypeScript": ("TypeScript", "frontend"),
+    "Go": ("Go", "backend"),
+    "Rust": ("Rust", "backend"),
+    "Java": ("Java", "backend"),
+    "Kotlin": ("Kotlin", "backend"),
+    "Ruby": ("Ruby", "backend"),
+    "PHP": ("PHP", "backend"),
+    "C#": ("C#", "backend"),
+    "Swift": ("Swift", "backend"),
+    "Dart": ("Dart", "frontend"),
+    "Elixir": ("Elixir", "backend"),
+    "Scala": ("Scala", "backend"),
+    "Clojure": ("Clojure", "backend"),
+    "Haskell": ("Haskell", "backend"),
+    "Lua": ("Lua", "backend"),
+    "R": ("R", "ai_ml"),
+    "Julia": ("Julia", "ai_ml"),
+    "C": ("C", "backend"),
+    "C++": ("C++", "backend"),
+    "Shell": ("Shell", "infrastructure"),
+    "HCL": ("Terraform", "infrastructure"),
+    "Nix": ("Nix", "infrastructure"),
+    "Zig": ("Zig", "backend"),
+}
+
+# --- GitHub topics → (technology_name, category) ---
+# Repos often tag themselves with topics like "django", "react", etc.
+GITHUB_TOPIC_MAP = {
+    # Python frameworks
+    "django": ("Django", "backend"),
+    "flask": ("Flask", "backend"),
+    "fastapi": ("FastAPI", "backend"),
+    "celery": ("Celery", "backend"),
+    # JS frameworks
+    "react": ("React", "frontend"),
+    "reactjs": ("React", "frontend"),
+    "nextjs": ("Next.js", "frontend"),
+    "next-js": ("Next.js", "frontend"),
+    "vue": ("Vue.js", "frontend"),
+    "vuejs": ("Vue.js", "frontend"),
+    "nuxt": ("Nuxt.js", "frontend"),
+    "nuxtjs": ("Nuxt.js", "frontend"),
+    "svelte": ("Svelte", "frontend"),
+    "angular": ("Angular", "frontend"),
+    "remix": ("Remix", "frontend"),
+    "astro": ("Astro", "frontend"),
+    "typescript": ("TypeScript", "frontend"),
+    "tailwindcss": ("Tailwind CSS", "frontend"),
+    "tailwind": ("Tailwind CSS", "frontend"),
+    # Backend / Node
+    "express": ("Express.js", "backend"),
+    "expressjs": ("Express.js", "backend"),
+    "nestjs": ("NestJS", "backend"),
+    "fastify": ("Fastify", "backend"),
+    "graphql": ("GraphQL", "backend"),
+    "trpc": ("tRPC", "backend"),
+    # Go
+    "golang": ("Go", "backend"),
+    "gin": ("Gin", "backend"),
+    "echo": ("Echo", "backend"),
+    "fiber": ("Fiber", "backend"),
+    # Rust
+    "rust": ("Rust", "backend"),
+    "actix": ("Actix Web", "backend"),
+    "tokio": ("Tokio", "backend"),
+    # Ruby
+    "rails": ("Ruby on Rails", "backend"),
+    "ruby-on-rails": ("Ruby on Rails", "backend"),
+    "sinatra": ("Sinatra", "backend"),
+    # Java / JVM
+    "spring": ("Spring", "backend"),
+    "spring-boot": ("Spring Boot", "backend"),
+    "kotlin": ("Kotlin", "backend"),
+    # PHP
+    "laravel": ("Laravel", "backend"),
+    "symfony": ("Symfony", "backend"),
+    # Databases
+    "postgresql": ("PostgreSQL", "database"),
+    "postgres": ("PostgreSQL", "database"),
+    "mongodb": ("MongoDB", "database"),
+    "redis": ("Redis", "database"),
+    "mysql": ("MySQL", "database"),
+    "elasticsearch": ("Elasticsearch", "database"),
+    "supabase": ("Supabase", "database"),
+    "prisma": ("Prisma", "database"),
+    "sqlite": ("SQLite", "database"),
+    # AI/ML
+    "openai": ("OpenAI API", "ai_ml"),
+    "gpt": ("OpenAI API", "ai_ml"),
+    "langchain": ("LangChain", "ai_ml"),
+    "llm": ("LLM", "ai_ml"),
+    "large-language-model": ("LLM", "ai_ml"),
+    "claude": ("Claude API", "ai_ml"),
+    "anthropic": ("Claude API", "ai_ml"),
+    "machine-learning": ("Machine Learning", "ai_ml"),
+    "deep-learning": ("Deep Learning", "ai_ml"),
+    "pytorch": ("PyTorch", "ai_ml"),
+    "tensorflow": ("TensorFlow", "ai_ml"),
+    "huggingface": ("Hugging Face", "ai_ml"),
+    "transformers": ("Hugging Face Transformers", "ai_ml"),
+    "computer-vision": ("Computer Vision", "ai_ml"),
+    "nlp": ("NLP", "ai_ml"),
+    "rag": ("RAG", "ai_ml"),
+    "vector-database": ("Vector DB", "ai_ml"),
+    "embeddings": ("Embeddings", "ai_ml"),
+    # Infrastructure
+    "docker": ("Docker", "infrastructure"),
+    "kubernetes": ("Kubernetes", "infrastructure"),
+    "k8s": ("Kubernetes", "infrastructure"),
+    "terraform": ("Terraform", "infrastructure"),
+    "aws": ("AWS", "infrastructure"),
+    "gcp": ("Google Cloud", "infrastructure"),
+    "azure": ("Azure", "infrastructure"),
+    "serverless": ("Serverless", "infrastructure"),
+    "ci-cd": ("CI/CD", "infrastructure"),
+    "github-actions": ("GitHub Actions", "infrastructure"),
+    # AI Tools
+    "cursor": ("Cursor", "ai_tool"),
+    "claude-code": ("Claude Code", "ai_tool"),
+    "copilot": ("GitHub Copilot", "ai_tool"),
+    "ai-assisted": ("AI-Assisted", "ai_tool"),
+    "ai-coding": ("AI-Assisted", "ai_tool"),
+}
+
+
 # --- Package name → (technology_name, category) mappings ---
 
 PYTHON_PACKAGE_MAP = {

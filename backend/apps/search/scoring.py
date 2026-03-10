@@ -45,12 +45,22 @@ def calculate_ai_tool_score(
     has_cursor_config: bool = False,
     has_copilot_config: bool = False,
     has_windsurf_config: bool = False,
+    ai_tool_count: int | None = None,
 ) -> int:
     """Score based on AI development tool signals found in the repo.
+
+    If ai_tool_count is provided, uses it directly (new path).
+    Otherwise falls back to the original 4 boolean flags (backward compat).
 
     Returns:
         Score 0-20
     """
+    if ai_tool_count is not None:
+        # Each detected AI tool = 5 points, first tool = 10 points, cap at 20
+        if ai_tool_count == 0:
+            return 0
+        return min(10 + (ai_tool_count - 1) * 5, 20)
+
     score = 0
     if has_claude_md:
         score += 10
@@ -139,6 +149,7 @@ def calculate_total_score(
     has_deployment_config: bool = False,
     last_pushed_at: datetime | None = None,
     contributor_count: int = 0,
+    ai_tool_count: int | None = None,
 ) -> int:
     """Calculate the total prospect score (0-100).
 
@@ -151,7 +162,10 @@ def calculate_total_score(
     """
     return (
         calculate_stack_score(detected_techs, must_have, nice_to_have)
-        + calculate_ai_tool_score(has_claude_md, has_cursor_config, has_copilot_config, has_windsurf_config)
+        + calculate_ai_tool_score(
+            has_claude_md, has_cursor_config, has_copilot_config, has_windsurf_config,
+            ai_tool_count=ai_tool_count,
+        )
         + calculate_production_score(has_docker, has_ci_cd, has_tests, has_deployment_config)
         + calculate_activity_score(last_pushed_at)
         + calculate_team_size_score(contributor_count)
