@@ -47,11 +47,14 @@ class SearchResultSerializer(serializers.ModelSerializer):
     organization_avatar = serializers.URLField(source="organization.avatar_url", read_only=True)
     repo_name = serializers.CharField(source="repo.full_name", read_only=True)
     is_hiring = serializers.SerializerMethodField()
+    matched_ai_tools = serializers.SerializerMethodField()
+    matched_infra = serializers.SerializerMethodField()
 
     class Meta:
         model = SearchResult
         fields = [
             "id", "organization_id", "match_score", "matched_stack",
+            "matched_ai_tools", "matched_infra",
             "organization_name", "organization_login", "organization_avatar",
             "repo_name", "created_at", "is_hiring",
         ]
@@ -62,3 +65,22 @@ class SearchResultSerializer(serializers.ModelSerializer):
             ats_mapping__organization=obj.organization,
             is_active=True,
         ).exists()
+
+    def get_matched_ai_tools(self, obj):
+        return list(
+            obj.repo.stack_detections
+            .filter(category="ai_tool")
+            .values_list("technology_name", flat=True)
+        )
+
+    def get_matched_infra(self, obj):
+        infra = []
+        if obj.repo.has_docker:
+            infra.append("Docker")
+        if obj.repo.has_ci_cd:
+            infra.append("CI/CD")
+        if obj.repo.has_tests:
+            infra.append("Tests")
+        if obj.repo.has_deployment_config:
+            infra.append("Deployed")
+        return infra

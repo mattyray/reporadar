@@ -26,6 +26,10 @@ class OrganizationRepoSerializer(serializers.ModelSerializer):
         fields = [
             "id", "name", "full_name", "description", "url", "stars", "forks",
             "has_claude_md", "has_cursor_config", "has_copilot_config",
+            "has_windsurf_config", "has_aider_config", "has_codeium_config",
+            "has_continue_config", "has_bolt_config", "has_v0_config",
+            "has_lovable_config", "has_idx_config", "has_amazonq_config",
+            "has_cline_config", "has_roo_config", "has_codex_config",
             "has_docker", "has_ci_cd", "has_tests", "has_deployment_config",
             "last_pushed_at", "stack_detections",
         ]
