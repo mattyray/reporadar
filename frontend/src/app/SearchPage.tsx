@@ -150,12 +150,31 @@ function SearchResultsList({ searchId }: { searchId: string }) {
   );
 }
 
+const AI_TOOL_OPTIONS = [
+  { label: 'Claude Code', value: 'CLAUDE.md' },
+  { label: 'Cursor', value: '.cursor' },
+  { label: 'GitHub Copilot', value: '.github/copilot' },
+  { label: 'Windsurf', value: '.windsurfrules' },
+  { label: 'Aider', value: '.aider' },
+  { label: 'Codeium', value: '.codeium' },
+  { label: 'Continue.dev', value: '.continue' },
+  { label: 'Bolt.new', value: '.bolt' },
+  { label: 'Vercel v0', value: '.v0' },
+  { label: 'Lovable', value: '.lovable' },
+  { label: 'Google IDX', value: '.idx' },
+  { label: 'Amazon Q', value: '.amazonq' },
+  { label: 'Cline', value: '.cline' },
+  { label: 'Roo Code', value: '.roo' },
+  { label: 'Codex', value: 'codex.md' },
+];
+
 export default function SearchPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [activeSearchId, setActiveSearchId] = useState<string | null>(null);
   const [selectedTechs, setSelectedTechs] = useState<string[]>([]);
+  const [selectedAiTools, setSelectedAiTools] = useState<string[]>([]);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [minStars, setMinStars] = useState(0);
   const [minContributors, setMinContributors] = useState(2);
@@ -206,10 +225,11 @@ export default function SearchPage() {
   });
 
   const handleSearch = () => {
-    if (selectedTechs.length === 0) return;
+    if (selectedTechs.length === 0 && selectedAiTools.length === 0) return;
     const config: SearchConfig = {
       stack_requirements: {
         must_have: selectedTechs,
+        ai_tool_signals: selectedAiTools.length > 0 ? selectedAiTools : undefined,
       },
       filters: {
         org_only: true,
@@ -265,6 +285,37 @@ export default function SearchPage() {
           hint="Click to select, or type your own below."
         />
 
+        {/* AI Tool selector */}
+        <div className="mt-4 pt-4 border-t border-gray-100">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            What AI tools should they build with?
+          </label>
+          <p className="text-xs text-gray-400 mb-2">Optional — find companies using specific AI coding tools.</p>
+          <div className="flex flex-wrap gap-2">
+            {AI_TOOL_OPTIONS.map((tool) => {
+              const isSelected = selectedAiTools.includes(tool.value);
+              return (
+                <button
+                  key={tool.value}
+                  type="button"
+                  onClick={() =>
+                    setSelectedAiTools((prev) =>
+                      isSelected ? prev.filter((v) => v !== tool.value) : [...prev, tool.value]
+                    )
+                  }
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium cursor-pointer transition-colors ${
+                    isSelected
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-purple-50 text-purple-700 hover:bg-purple-100'
+                  }`}
+                >
+                  {tool.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Advanced filters (collapsed) */}
         <div className="mt-4 pt-4 border-t border-gray-100">
           <button
@@ -311,14 +362,14 @@ export default function SearchPage() {
         {/* Search button */}
         <button
           onClick={handleSearch}
-          disabled={selectedTechs.length === 0 || createSearch.isPending || (activeSearch && (activeSearch.status === 'pending' || activeSearch.status === 'running'))}
+          disabled={(selectedTechs.length === 0 && selectedAiTools.length === 0) || createSearch.isPending || (activeSearch && (activeSearch.status === 'pending' || activeSearch.status === 'running'))}
           className="mt-4 w-full bg-indigo-600 text-white rounded-md py-2.5 px-4 font-medium hover:bg-indigo-700 disabled:opacity-50 cursor-pointer"
         >
           {createSearch.isPending
             ? 'Searching...'
-            : selectedTechs.length === 0
-              ? 'Select at least one technology'
-              : `Find Companies Using ${selectedTechs.slice(0, 3).join(', ')}${selectedTechs.length > 3 ? ` +${selectedTechs.length - 3} more` : ''}`}
+            : (selectedTechs.length === 0 && selectedAiTools.length === 0)
+              ? 'Select technologies or AI tools'
+              : `Find Companies Using ${[...selectedTechs.slice(0, 3), ...selectedAiTools.length > 0 ? [`${selectedAiTools.length} AI tool${selectedAiTools.length > 1 ? 's' : ''}`] : []].join(', ')}${selectedTechs.length > 3 ? ' +more' : ''}`}
         </button>
       </div>
 
