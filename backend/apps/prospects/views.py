@@ -92,6 +92,9 @@ class RepoAnalyzeView(APIView):
     """POST /api/prospects/repos/{repo_id}/analyze/ — Trigger AI analysis for a repo."""
 
     def post(self, request, repo_id):
+        from django.utils import timezone as tz
+        from datetime import timedelta
+
         try:
             repo = OrganizationRepo.objects.get(pk=repo_id)
         except OrganizationRepo.DoesNotExist:
@@ -100,12 +103,14 @@ class RepoAnalyzeView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        # Don't re-analyze if already in progress
-        if repo.ai_analysis_status == "analyzing":
-            return Response(
-                {"detail": "Analysis already in progress.", "status": "analyzing"},
-                status=status.HTTP_409_CONFLICT,
-            )
+        # Don't re-analyze if already in progress (unless stuck > 5 min)
+        if repo.ai_analysis_status in ("analyzing", "pending"):
+            stale_cutoff = tz.now() - timedelta(minutes=5)
+            if repo.updated_at > stale_cutoff:
+                return Response(
+                    {"detail": "Analysis already in progress.", "status": repo.ai_analysis_status},
+                    status=status.HTTP_409_CONFLICT,
+                )
 
         # Mark as pending and kick off the task
         repo.ai_analysis_status = "pending"
