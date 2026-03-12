@@ -5,10 +5,11 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Organization, SavedProspect
+from .models import Organization, OrganizationRepo, SavedProspect
 from .serializers import (
     OrganizationDetailSerializer,
     OrganizationListSerializer,
+    OrganizationRepoSerializer,
     SavedProspectSerializer,
 )
 
@@ -85,6 +86,51 @@ class SavedProspectDeleteView(generics.DestroyAPIView):
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied("You can only delete your own saved prospects.")
         super().perform_destroy(instance)
+
+
+class RepoAnalyzeView(APIView):
+    """POST /api/prospects/repos/{repo_id}/analyze/ — Trigger AI analysis for a repo."""
+
+    def post(self, request, repo_id):
+        try:
+            repo = OrganizationRepo.objects.get(pk=repo_id)
+        except OrganizationRepo.DoesNotExist:
+            return Response(
+                {"detail": "Repository not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Don't re-analyze if already in progress
+        if repo.ai_analysis_status == "analyzing":
+            return Response(
+                {"detail": "Analysis already in progress.", "status": "analyzing"},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        # Mark as pending and kick off the task
+        repo.ai_analysis_status = "pending"
+        repo.ai_analysis_error = ""
+        repo.save(update_fields=["ai_analysis_status", "ai_analysis_error"])
+
+        from .tasks import analyze_repo_with_ai
+        analyze_repo_with_ai.delay(repo.id, request.user.id)
+
+        return Response(
+            {"detail": "Analysis started.", "status": "pending"},
+            status=status.HTTP_202_ACCEPTED,
+        )
+
+    def get(self, request, repo_id):
+        """GET — Check analysis status / get results."""
+        try:
+            repo = OrganizationRepo.objects.get(pk=repo_id)
+        except OrganizationRepo.DoesNotExist:
+            return Response(
+                {"detail": "Repository not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        return Response(OrganizationRepoSerializer(repo).data)
 
 
 class ProspectExportView(APIView):

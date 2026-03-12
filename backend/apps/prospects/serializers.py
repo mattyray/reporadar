@@ -32,6 +32,7 @@ class OrganizationRepoSerializer(serializers.ModelSerializer):
             "has_cline_config", "has_roo_config", "has_codex_config",
             "has_docker", "has_ci_cd", "has_tests", "has_deployment_config",
             "last_pushed_at", "stack_detections",
+            "ai_analysis_status", "ai_analysis", "ai_analyzed_at",
         ]
 
 

@@ -96,6 +96,47 @@ export interface Repo {
   has_deployment_config: boolean;
   last_pushed_at: string | null;
   stack_detections: StackDetection[];
+  ai_analysis_status: 'none' | 'pending' | 'analyzing' | 'completed' | 'failed';
+  ai_analysis: RepoAnalysis | null;
+  ai_analyzed_at: string | null;
+}
+
+export interface RepoAnalysis {
+  summary: string;
+  tech_stack: {
+    languages: string[];
+    frameworks: string[];
+    databases: string[];
+    infrastructure: string[];
+    notable_libraries: string[];
+    ai_tools: string[];
+  };
+  architecture: {
+    pattern: string;
+    description: string;
+    key_directories: Array<{ path: string; purpose: string }>;
+  };
+  code_quality: {
+    has_tests: boolean;
+    has_ci_cd: boolean;
+    has_linting: boolean;
+    has_type_checking: boolean;
+    has_documentation: boolean;
+    quality_notes: string;
+  };
+  maturity: {
+    stage: string;
+    signals: string[];
+    team_size_estimate: string;
+    activity_assessment: string;
+  };
+  what_they_are_building: string;
+  notable_patterns: string[];
+  interesting_for_job_seekers: {
+    why_work_here: string;
+    tech_culture_signals: string[];
+    potential_roles: string[];
+  };
 }
 
 export interface StackDetection {

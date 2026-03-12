@@ -271,6 +271,21 @@ Allauth's default JWT lifetime is 300 seconds (5 minutes). Users who logged in m
 
 ---
 
+### 2026-03-11 — Detecting What AI Tools Companies Build With
+
+Added detection for 15 AI coding tools by checking for config files in repos: Claude Code (CLAUDE.md), Cursor (.cursorrules), Copilot, Windsurf, Aider, Codeium, Continue.dev, Bolt.new, v0, Lovable, Google IDX, Amazon Q, Cline, Roo Code, and OpenAI Codex. Each is a single HEAD request against the GitHub API — cheap, definitive, and no false positives. If a repo has a `.cursorrules` file, someone on that team is using Cursor. Period.
+
+Also added zero-cost detection from GitHub's own data: the `language` field (25 languages mapped) and `topics` array (90+ topic-to-tech mappings). Every repo already returns this data — we were just ignoring it. Now a Go repo with topics `["kubernetes", "docker", "openai"]` gets tagged with all four technologies without parsing a single dependency file.
+
+The frontend groups detections by category with color-coded chips: indigo for tech stack, purple for AI tools, gray for infrastructure. Search results now show at a glance: `[Django] [React] | [Claude Code] [Cursor] | [Docker] [CI/CD]`. The pipe separators make it scannable — you can instantly tell if a company builds with AI tools.
+
+Built an AI tool selector in the search form — 15 purple toggle chips. Users can search specifically for "companies using Claude Code + Cursor" without even specifying a tech stack. This queries GitHub's code search for the actual config files (`filename:CLAUDE.md`, `filename:.cursorrules`).
+
+**Content angle:** "How I detect which AI tools companies use — by reading their config files"
+**Content angle:** "The GitHub data you're already paying for but not using"
+
+---
+
 ## Phase 3: Contact Enrichment — [dates TBD]
 
 ---

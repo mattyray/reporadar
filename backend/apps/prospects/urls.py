@@ -6,6 +6,7 @@ urlpatterns = [
     path("", views.ProspectListView.as_view(), name="prospect-list"),
     path("<int:pk>/", views.ProspectDetailView.as_view(), name="prospect-detail"),
     path("<int:pk>/save/", views.SaveProspectView.as_view(), name="prospect-save"),
+    path("repos/<int:repo_id>/analyze/", views.RepoAnalyzeView.as_view(), name="repo-analyze"),
     path("saved/", views.SavedProspectListView.as_view(), name="prospect-saved-list"),
     path("saved/<int:pk>/", views.SavedProspectDeleteView.as_view(), name="prospect-saved-delete"),
     path("export/", views.ProspectExportView.as_view(), name="prospect-export"),

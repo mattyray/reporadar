@@ -1,8 +1,246 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
-import type { Repo, Contributor, Contact, JobListing } from '../types/api';
+import type { Repo, Contributor, Contact, JobListing, RepoAnalysis } from '../types/api';
 import TechChip, { groupByCategory } from '../components/TechChip';
+
+function AnalysisButton({ repo }: { repo: Repo }) {
+  const queryClient = useQueryClient();
+
+  const analyze = useMutation({
+    mutationFn: () => api.analyzeRepo(repo.id),
+    onSuccess: () => {
+      // Poll for results — analysis takes 10-30 seconds
+      const poll = setInterval(() => {
+        api.getRepoAnalysis(repo.id).then((updated) => {
+          if (updated.ai_analysis_status === 'completed' || updated.ai_analysis_status === 'failed') {
+            clearInterval(poll);
+            queryClient.invalidateQueries({ queryKey: ['prospect'] });
+          }
+        });
+      }, 3000);
+    },
+  });
+
+  const status = repo.ai_analysis_status;
+  const isWorking = status === 'pending' || status === 'analyzing' || analyze.isPending;
+
+  if (status === 'completed') return null;
+
+  return (
+    <button
+      onClick={() => analyze.mutate()}
+      disabled={isWorking}
+      className="mt-2 text-xs px-3 py-1.5 bg-violet-50 text-violet-700 border border-violet-200 rounded-md hover:bg-violet-100 transition-colors disabled:opacity-50 cursor-pointer"
+    >
+      {isWorking ? (
+        <span className="flex items-center gap-1.5">
+          <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+          Analyzing with AI...
+        </span>
+      ) : status === 'failed' ? (
+        'Retry AI Analysis'
+      ) : (
+        'Analyze with AI'
+      )}
+    </button>
+  );
+}
+
+function QualityBadge({ label, value }: { label: string; value: boolean }) {
+  return (
+    <span className={`px-2 py-0.5 rounded text-xs ${value ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
+      {value ? '\u2713' : '\u2717'} {label}
+    </span>
+  );
+}
+
+function AnalysisDisplay({ analysis }: { analysis: RepoAnalysis }) {
+  const [expanded, setExpanded] = useState(true);
+
+  return (
+    <div className="mt-3 border-t border-violet-100 pt-3">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center gap-1.5 text-xs font-medium text-violet-700 hover:text-violet-900 cursor-pointer"
+      >
+        <span>{expanded ? '\u25BC' : '\u25B6'}</span>
+        AI Analysis
+      </button>
+
+      {expanded && (
+        <div className="mt-3 space-y-4 text-sm">
+          {/* Summary */}
+          <div>
+            <p className="text-gray-700 leading-relaxed">{analysis.summary}</p>
+          </div>
+
+          {/* Tech Stack Breakdown */}
+          <div>
+            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Tech Stack</h4>
+            <div className="grid grid-cols-2 gap-2">
+              {analysis.tech_stack.languages?.length > 0 && (
+                <div>
+                  <span className="text-xs text-gray-400">Languages:</span>
+                  <div className="flex flex-wrap gap-1 mt-0.5">
+                    {analysis.tech_stack.languages.map(l => (
+                      <span key={l} className="px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded text-xs">{l}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {analysis.tech_stack.frameworks?.length > 0 && (
+                <div>
+                  <span className="text-xs text-gray-400">Frameworks:</span>
+                  <div className="flex flex-wrap gap-1 mt-0.5">
+                    {analysis.tech_stack.frameworks.map(f => (
+                      <span key={f} className="px-1.5 py-0.5 bg-indigo-50 text-indigo-700 rounded text-xs">{f}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {analysis.tech_stack.databases?.length > 0 && (
+                <div>
+                  <span className="text-xs text-gray-400">Databases:</span>
+                  <div className="flex flex-wrap gap-1 mt-0.5">
+                    {analysis.tech_stack.databases.map(d => (
+                      <span key={d} className="px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded text-xs">{d}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {analysis.tech_stack.notable_libraries?.length > 0 && (
+                <div>
+                  <span className="text-xs text-gray-400">Libraries:</span>
+                  <div className="flex flex-wrap gap-1 mt-0.5">
+                    {analysis.tech_stack.notable_libraries.map(l => (
+                      <span key={l} className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs">{l}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {analysis.tech_stack.ai_tools?.length > 0 && (
+                <div>
+                  <span className="text-xs text-gray-400">AI Tools:</span>
+                  <div className="flex flex-wrap gap-1 mt-0.5">
+                    {analysis.tech_stack.ai_tools.map(t => (
+                      <span key={t} className="px-1.5 py-0.5 bg-violet-50 text-violet-700 rounded text-xs">{t}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {analysis.tech_stack.infrastructure?.length > 0 && (
+                <div>
+                  <span className="text-xs text-gray-400">Infrastructure:</span>
+                  <div className="flex flex-wrap gap-1 mt-0.5">
+                    {analysis.tech_stack.infrastructure.map(i => (
+                      <span key={i} className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded text-xs">{i}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Architecture */}
+          <div>
+            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Architecture</h4>
+            <p className="text-xs font-medium text-gray-800">{analysis.architecture.pattern}</p>
+            <p className="text-xs text-gray-600 mt-0.5">{analysis.architecture.description}</p>
+            {analysis.architecture.key_directories?.length > 0 && (
+              <div className="mt-2 grid grid-cols-2 gap-1">
+                {analysis.architecture.key_directories.map(d => (
+                  <div key={d.path} className="text-xs">
+                    <code className="text-violet-600 bg-violet-50 px-1 rounded">{d.path}</code>
+                    <span className="text-gray-500 ml-1">{d.purpose}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Code Quality */}
+          <div>
+            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Code Quality</h4>
+            <div className="flex flex-wrap gap-1.5">
+              <QualityBadge label="Tests" value={analysis.code_quality.has_tests} />
+              <QualityBadge label="CI/CD" value={analysis.code_quality.has_ci_cd} />
+              <QualityBadge label="Linting" value={analysis.code_quality.has_linting} />
+              <QualityBadge label="Types" value={analysis.code_quality.has_type_checking} />
+              <QualityBadge label="Docs" value={analysis.code_quality.has_documentation} />
+            </div>
+            {analysis.code_quality.quality_notes && (
+              <p className="text-xs text-gray-500 mt-1">{analysis.code_quality.quality_notes}</p>
+            )}
+          </div>
+
+          {/* Maturity */}
+          <div>
+            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Project Maturity</h4>
+            <div className="flex flex-wrap gap-2 text-xs">
+              <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded font-medium">{analysis.maturity.stage}</span>
+              <span className="text-gray-500">{analysis.maturity.team_size_estimate}</span>
+              <span className="text-gray-500">{analysis.maturity.activity_assessment}</span>
+            </div>
+            {analysis.maturity.signals?.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1.5">
+                {analysis.maturity.signals.map(s => (
+                  <span key={s} className="text-xs text-gray-500">{s}</span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* What they're building */}
+          {analysis.what_they_are_building && (
+            <div>
+              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">What They're Building</h4>
+              <p className="text-xs text-gray-700">{analysis.what_they_are_building}</p>
+            </div>
+          )}
+
+          {/* Notable Patterns */}
+          {analysis.notable_patterns?.length > 0 && (
+            <div>
+              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Notable Patterns</h4>
+              <ul className="text-xs text-gray-600 space-y-0.5">
+                {analysis.notable_patterns.map(p => (
+                  <li key={p} className="flex items-start gap-1">
+                    <span className="text-violet-400 mt-0.5">&bull;</span>
+                    {p}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Job Seeker Insights */}
+          <div className="bg-gradient-to-r from-violet-50 to-indigo-50 rounded-md p-3">
+            <h4 className="text-xs font-semibold text-violet-700 uppercase tracking-wider mb-1">Why Work Here</h4>
+            <p className="text-xs text-gray-700">{analysis.interesting_for_job_seekers.why_work_here}</p>
+            {analysis.interesting_for_job_seekers.tech_culture_signals?.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-2">
+                {analysis.interesting_for_job_seekers.tech_culture_signals.map(s => (
+                  <span key={s} className="px-1.5 py-0.5 bg-white/70 text-violet-700 rounded text-xs">{s}</span>
+                ))}
+              </div>
+            )}
+            {analysis.interesting_for_job_seekers.potential_roles?.length > 0 && (
+              <div className="mt-1.5">
+                <span className="text-xs text-gray-500">Potential roles: </span>
+                <span className="text-xs text-gray-700">{analysis.interesting_for_job_seekers.potential_roles.join(', ')}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function ProspectDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -268,6 +506,13 @@ export default function ProspectDetailPage() {
                     );
                   })()}
                 </div>
+
+                {/* AI Analysis — button or results */}
+                {repo.ai_analysis_status === 'completed' && repo.ai_analysis ? (
+                  <AnalysisDisplay analysis={repo.ai_analysis} />
+                ) : (
+                  <AnalysisButton repo={repo} />
+                )}
               </div>
             ))}
           </div>

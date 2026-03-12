@@ -75,6 +75,18 @@ class GitHubClient:
         resp.raise_for_status()
         return resp.json()
 
+    def get_repo_tree(self, owner: str, repo: str, branch: str = "main") -> list[str]:
+        """Get the full directory tree for a repo. Returns list of file paths."""
+        resp = self.session.get(
+            f"{GITHUB_API_BASE}/repos/{owner}/{repo}/git/trees/{branch}",
+            params={"recursive": "1"},
+        )
+        if resp.status_code == 404:
+            return []
+        resp.raise_for_status()
+        tree = resp.json().get("tree", [])
+        return [item["path"] for item in tree if item.get("type") in ("blob", "tree")]
+
     def get_user(self, username: str) -> dict:
         """Get full user profile (email, company, bio, etc.)."""
         resp = self.session.get(f"{GITHUB_API_BASE}/users/{username}")

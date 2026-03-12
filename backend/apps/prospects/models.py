@@ -66,6 +66,20 @@ class OrganizationRepo(models.Model):
     last_pushed_at = models.DateTimeField(null=True, blank=True)
     created_at_github = models.DateTimeField(null=True, blank=True)
     last_scanned_at = models.DateTimeField(null=True, blank=True)
+    # AI-powered repo analysis
+    AI_ANALYSIS_STATUS_CHOICES = [
+        ("none", "Not analyzed"),
+        ("pending", "Pending"),
+        ("analyzing", "Analyzing"),
+        ("completed", "Completed"),
+        ("failed", "Failed"),
+    ]
+    ai_analysis_status = models.CharField(
+        max_length=20, choices=AI_ANALYSIS_STATUS_CHOICES, default="none"
+    )
+    ai_analysis = models.JSONField(null=True, blank=True)
+    ai_analysis_error = models.TextField(blank=True)
+    ai_analyzed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

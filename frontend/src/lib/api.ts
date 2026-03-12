@@ -66,6 +66,12 @@ export const api = {
   removeSavedProspect: (id: number) =>
     request(`/prospects/saved/${id}/`, { method: 'DELETE' }),
 
+  // Repo Analysis
+  analyzeRepo: (repoId: number) =>
+    request<{ detail: string; status: string }>(`/prospects/repos/${repoId}/analyze/`, { method: 'POST' }),
+  getRepoAnalysis: (repoId: number) =>
+    request<import('../types/api').Repo>(`/prospects/repos/${repoId}/analyze/`),
+
   // Enrichment
   enrichOrg: (orgId: number) =>
     request(`/enrichment/${orgId}/enrich/`, { method: 'POST' }),
