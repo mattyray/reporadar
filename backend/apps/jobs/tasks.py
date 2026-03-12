@@ -103,6 +103,21 @@ def refresh_all_jobs():
     logger.info("refresh_all_jobs: queued %d mappings", len(mapping_ids))
 
 
+@shared_task
+def fetch_unfetched_mappings():
+    """Fetch jobs for any ATS mappings that have never been checked (e.g. from seed)."""
+    mapping_ids = list(
+        ATSMapping.objects.filter(last_checked_at__isnull=True).values_list("id", flat=True)
+    )
+    if not mapping_ids:
+        return
+
+    logger.info("fetch_unfetched_mappings: found %d mappings to fetch", len(mapping_ids))
+    for mapping_id in mapping_ids:
+        refresh_jobs.delay(mapping_id)
+
+
+
 def _refresh_mapping_jobs(client, mapping: ATSMapping):
     """Fetch jobs from ATS and sync with database."""
     from providers.ats_client import ATSClient

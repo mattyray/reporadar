@@ -7,7 +7,6 @@ Usage: python manage.py seed_ats_mappings
 from django.core.management.base import BaseCommand
 
 from apps.jobs.models import ATSMapping
-from apps.jobs.tasks import refresh_jobs
 
 # Known tech company ATS slugs.
 # Format: (company_name, platform, slug)
@@ -16,50 +15,37 @@ KNOWN_MAPPINGS = [
     ("Stripe", "greenhouse", "stripe"),
     ("Cloudflare", "greenhouse", "cloudflare"),
     ("Figma", "greenhouse", "figma"),
-    ("Notion", "greenhouse", "notion"),
     ("Datadog", "greenhouse", "datadog"),
     ("GitLab", "greenhouse", "gitlab"),
     ("Twilio", "greenhouse", "twilio"),
     ("Airtable", "greenhouse", "airtable"),
-    ("Plaid", "greenhouse", "plaid"),
     ("Gusto", "greenhouse", "gusto"),
     ("Brex", "greenhouse", "brex"),
-    ("Ramp", "greenhouse", "ramp"),
     ("Scale AI", "greenhouse", "scaleai"),
     ("Anthropic", "greenhouse", "anthropic"),
-    ("OpenAI", "greenhouse", "openai"),
     ("Vercel", "greenhouse", "vercel"),
-    ("Supabase", "greenhouse", "supabase"),
-    ("Linear", "greenhouse", "linear"),
-    ("Loom", "greenhouse", "loom"),
-    ("Retool", "greenhouse", "retool"),
     ("Postman", "greenhouse", "postman"),
-    ("HashiCorp", "greenhouse", "hashicorp"),
-    ("DigitalOcean", "greenhouse", "digitalocean"),
     ("PlanetScale", "greenhouse", "planetscale"),
-    ("Render", "greenhouse", "render"),
-    ("Sentry", "greenhouse", "sentry"),
-    ("Snyk", "greenhouse", "snyk"),
     ("LaunchDarkly", "greenhouse", "launchdarkly"),
-    ("Neon", "greenhouse", "neondatabase"),
-    ("Resend", "greenhouse", "resend"),
     # Lever companies
     ("Netflix", "lever", "netflix"),
-    ("Netlify", "lever", "netlify"),
-    ("Coinbase", "lever", "coinbase"),
-    ("Lyft", "lever", "lyft"),
-    ("Reddit", "lever", "reddit"),
-    ("Palantir", "lever", "palantir"),
     ("Spotify", "lever", "spotify"),
-    ("Affirm", "lever", "affirm"),
-    ("Zapier", "lever", "zapier"),
-    ("Webflow", "lever", "webflow"),
+    ("Plaid", "lever", "plaid"),
     ("Weights & Biases", "lever", "wandb"),
     ("Replit", "lever", "replit"),
     ("Railway", "lever", "railway"),
     # Ashby companies
     ("Ashby", "ashby", "ashby"),
+    ("Notion", "ashby", "notion"),
+    ("OpenAI", "ashby", "openai"),
+    ("Linear", "ashby", "linear"),
     ("Ramp", "ashby", "ramp"),
+    ("Sentry", "ashby", "sentry"),
+    ("Render", "ashby", "render"),
+    ("Supabase", "ashby", "supabase"),
+    ("Retool", "ashby", "retool"),
+    ("Snyk", "ashby", "snyk"),
+    ("Loom", "ashby", "loom"),
     ("Deel", "ashby", "deel"),
     ("Vanta", "ashby", "vanta"),
     ("Faire", "ashby", "faire"),
@@ -68,6 +54,7 @@ KNOWN_MAPPINGS = [
     ("Turso", "ashby", "turso"),
     # Workable companies
     ("Workable", "workable", "workable"),
+    ("HashiCorp", "workable", "hashicorp"),
 ]
 
 
@@ -100,7 +87,18 @@ class Command(BaseCommand):
         )
 
         if options["fetch"]:
-            self.stdout.write("Queuing job refresh for all mappings...")
+            from providers.ats_client import ATSClient
+            from apps.jobs.tasks import _refresh_mapping_jobs
+
+            client = ATSClient()
+            total_jobs = 0
             for mapping in ATSMapping.objects.all():
-                refresh_jobs.delay(mapping.id)
-            self.stdout.write(self.style.SUCCESS("Done. Jobs will be fetched in the background."))
+                try:
+                    _refresh_mapping_jobs(client, mapping)
+                    job_count = mapping.jobs.filter(is_active=True).count()
+                    total_jobs += job_count
+                    if job_count:
+                        self.stdout.write(f"  {mapping.company_name} ({mapping.ats_platform}): {job_count} jobs")
+                except Exception as e:
+                    self.stdout.write(self.style.WARNING(f"  {mapping.company_name}: failed ({e})"))
+            self.stdout.write(self.style.SUCCESS(f"Done. {total_jobs} total active jobs indexed."))
