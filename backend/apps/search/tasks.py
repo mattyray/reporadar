@@ -19,7 +19,7 @@ from apps.search.scoring import calculate_total_score
 from providers.github_client import GitHubClient
 
 
-@shared_task(bind=True)
+@shared_task(bind=True, max_retries=3, default_retry_delay=30)
 def scan_search_results(self, search_id: str):
     """Main search task: run GitHub code search, analyze repos, score results."""
     search = SearchQuery.objects.get(id=search_id)
@@ -115,6 +115,11 @@ def scan_search_results(self, search_id: str):
         ])
 
     except Exception as e:
+        # Retry on transient errors (network, rate limits)
+        if self.request.retries < self.max_retries:
+            import requests
+            if isinstance(e, (requests.ConnectionError, requests.Timeout)):
+                self.retry(exc=e)
         search.status = "failed"
         search.error_message = str(e)
         search.save(update_fields=["status", "error_message"])

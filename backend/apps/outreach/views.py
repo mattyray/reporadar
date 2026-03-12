@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.enrichment.models import OrganizationContact
-from apps.prospects.models import Organization
+from apps.prospects.models import Organization, RepoStackDetection
 from apps.resumes.models import ResumeProfile
 
 from .models import OutreachMessage
@@ -43,10 +43,12 @@ class OutreachGenerateView(APIView):
         if contact_id:
             contact = OrganizationContact.objects.filter(pk=contact_id).first()
 
-        # Build context for Claude
+        # Build context for Claude — aggregate stack across all repos
         org_stack = list(
-            org.repos.first().stack_detections.values_list("technology_name", flat=True)
-        ) if org.repos.exists() else []
+            RepoStackDetection.objects.filter(
+                repo__organization=org
+            ).values_list("technology_name", flat=True).distinct()
+        )
 
         context = {
             "organization": {

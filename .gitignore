@@ -48,3 +48,9 @@ htmlcov/
 # Celery
 celerybeat-schedule
 celerybeat.pid
+
+# Netlify
+frontend/.netlify/
+
+# Generated code dumps
+reporadar_full_code.txt

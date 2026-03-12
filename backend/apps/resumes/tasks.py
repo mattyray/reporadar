@@ -70,14 +70,20 @@ def _extract_text(profile):
 
 
 def _extract_pdf_text(file_path):
-    """Extract text from a PDF file. Tries pdfminer, falls back to reading raw."""
+    """Extract text from a PDF file using pdfminer."""
     try:
         from pdfminer.high_level import extract_text
-        return extract_text(file_path)
+        text = extract_text(file_path)
+        if text and text.strip():
+            return text
+        return None
     except ImportError:
-        # Fallback: read raw bytes and send to Claude as-is
-        with open(file_path, "rb") as f:
-            return f"[PDF binary, {len(f.read())} bytes — could not extract text. Install pdfminer.six.]"
+        raise RuntimeError(
+            "pdfminer.six is not installed. Cannot extract text from PDF. "
+            "Run: pip install pdfminer.six"
+        )
+    except Exception as e:
+        raise RuntimeError(f"Failed to extract text from PDF: {e}")
 
 
 def _extract_docx_text(file_path):
@@ -85,9 +91,17 @@ def _extract_docx_text(file_path):
     try:
         import docx
         doc = docx.Document(file_path)
-        return "\n".join(para.text for para in doc.paragraphs if para.text.strip())
-    except ImportError:
+        text = "\n".join(para.text for para in doc.paragraphs if para.text.strip())
+        if text and text.strip():
+            return text
         return None
+    except ImportError:
+        raise RuntimeError(
+            "python-docx is not installed. Cannot extract text from DOCX. "
+            "Run: pip install python-docx"
+        )
+    except Exception as e:
+        raise RuntimeError(f"Failed to extract text from DOCX: {e}")
 
 
 def _build_parse_prompt(resume_text):

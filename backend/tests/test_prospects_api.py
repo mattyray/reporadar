@@ -13,6 +13,7 @@ from apps.prospects.models import (
     RepoStackDetection,
     SavedProspect,
 )
+from apps.search.models import SearchQuery, SearchResult
 
 User = get_user_model()
 
@@ -66,7 +67,15 @@ def org_with_stack(org):
 
 
 @pytest.mark.django_db
-def test_prospect_list(api_client, org):
+def test_prospect_list(api_client, org, user):
+    # ProspectListView scopes to orgs found by current user's searches
+    search = SearchQuery.objects.create(user=user, config={"stack_requirements": {"must_have": ["django"]}})
+    repo = OrganizationRepo.objects.create(
+        organization=org, github_id=11111, name="test-repo",
+        full_name="acme-corp/test-repo", url="https://github.com/acme-corp/test-repo",
+    )
+    SearchResult.objects.create(search=search, repo=repo, organization=org, match_score=50)
+
     response = api_client.get("/api/prospects/")
     assert response.status_code == 200
     assert len(response.data["results"]) == 1

@@ -58,10 +58,17 @@ class OrganizationDetailSerializer(serializers.ModelSerializer):
         ]
 
     def get_top_contributors(self, obj):
-        contributors = RepoContributor.objects.filter(
-            repo__organization=obj
-        ).order_by("-contributions")[:10]
-        return RepoContributorSerializer(contributors, many=True).data
+        # Use prefetched data instead of a separate query
+        all_contributors = []
+        for repo in obj.repos.all():
+            all_contributors.extend(repo.contributors.all())
+        # Deduplicate by github_username, keep highest contribution count
+        seen = {}
+        for c in all_contributors:
+            if c.github_username not in seen or c.contributions > seen[c.github_username].contributions:
+                seen[c.github_username] = c
+        top = sorted(seen.values(), key=lambda c: c.contributions, reverse=True)[:10]
+        return RepoContributorSerializer(top, many=True).data
 
 
 class SavedProspectSerializer(serializers.ModelSerializer):

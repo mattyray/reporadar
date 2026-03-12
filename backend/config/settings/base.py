@@ -121,6 +121,14 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "20/minute",
+        "user": "120/minute",
+    },
 }
 
 # django-allauth
@@ -163,6 +171,9 @@ CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = "UTC"
+CELERY_TASK_TIME_LIMIT = 900  # 15 minutes hard limit
+CELERY_TASK_SOFT_TIME_LIMIT = 600  # 10 minutes soft limit
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 
 # Redis cache
 CACHES = {

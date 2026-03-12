@@ -75,10 +75,16 @@ class SavedProspectListView(generics.ListAPIView):
 
 
 class SavedProspectDeleteView(generics.DestroyAPIView):
-    """DELETE /api/prospects/saved/{id}/ — Remove from saved."""
+    """DELETE /api/prospects/saved/{id}/ — Remove from saved. Scoped to current user."""
 
     def get_queryset(self):
         return SavedProspect.objects.filter(user=self.request.user)
+
+    def perform_destroy(self, instance):
+        if instance.user != self.request.user:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("You can only delete your own saved prospects.")
+        super().perform_destroy(instance)
 
 
 class ProspectExportView(APIView):
