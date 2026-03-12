@@ -2,6 +2,7 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.accounts.models import get_github_token
 from .models import SearchQuery, SearchPreset, SearchResult
 from .serializers import (
     SearchConfigSerializer,
@@ -69,6 +70,93 @@ class SearchHistoryView(generics.ListAPIView):
 
     def get_queryset(self):
         return SearchQuery.objects.filter(user=self.request.user)
+
+
+class CompanyLookupView(APIView):
+    """GET /api/search/company/?q=ycharts — Search GitHub for orgs/users by name."""
+
+    def get(self, request):
+        query = request.query_params.get("q", "").strip()
+        if not query or len(query) < 2:
+            return Response(
+                {"detail": "Query must be at least 2 characters."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        token = get_github_token(request.user)
+        if not token:
+            return Response(
+                {"detail": "GitHub not connected."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        from providers.github_client import GitHubClient
+        client = GitHubClient(token=token)
+        results = client.search_users(query, per_page=10)
+
+        # Return a clean list
+        return Response({
+            "results": [
+                {
+                    "login": r.get("login", ""),
+                    "github_id": r.get("id"),
+                    "avatar_url": r.get("avatar_url", ""),
+                    "type": r.get("type", ""),  # "Organization" or "User"
+                    "url": r.get("html_url", ""),
+                }
+                for r in results
+            ]
+        })
+
+
+class CompanyScanView(APIView):
+    """POST /api/search/company/scan/ — Scan an org's repos and save to DB."""
+
+    def post(self, request):
+        login = request.data.get("login", "").strip()
+        if not login:
+            return Response(
+                {"detail": "login is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        token = get_github_token(request.user)
+        if not token:
+            return Response(
+                {"detail": "GitHub not connected."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        from .tasks import scan_company
+        task = scan_company.delay(login, request.user.id)
+
+        return Response(
+            {"detail": "Scan started.", "task_id": task.id, "login": login},
+            status=status.HTTP_202_ACCEPTED,
+        )
+
+
+class CompanyScanStatusView(APIView):
+    """GET /api/search/company/scan/status/?login=ycharts — Check if scan is done."""
+
+    def get(self, request):
+        login = request.query_params.get("login", "").strip()
+        if not login:
+            return Response(
+                {"detail": "login param required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        from apps.prospects.models import Organization
+        try:
+            org = Organization.objects.get(github_login__iexact=login)
+            from apps.prospects.serializers import OrganizationDetailSerializer
+            return Response({
+                "status": "completed",
+                "organization": OrganizationDetailSerializer(org).data,
+            })
+        except Organization.DoesNotExist:
+            return Response({"status": "scanning"})
 
 
 class SearchPresetListCreateView(generics.ListCreateAPIView):

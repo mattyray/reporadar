@@ -193,6 +193,48 @@ def _search_local_database(search):
     ])
 
 
+@shared_task(bind=True, max_retries=2, default_retry_delay=15)
+def scan_company(self, login: str, user_id: int):
+    """Scan a specific GitHub org/user: fetch their repos, detect stacks, pull contributors."""
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    user = User.objects.get(pk=user_id)
+
+    token = get_github_token(user)
+    if not token:
+        raise RuntimeError("GitHub not connected")
+
+    client = GitHubClient(token=token)
+
+    # Fetch the org/user profile to get owner_data
+    try:
+        owner_data = client.get_org(login)
+        owner_data["type"] = "Organization"
+    except Exception:
+        # Might be a user account, not an org
+        owner_data = client.get_user(login)
+        owner_data["type"] = "User"
+
+    # Fetch their repos (top 20 by most recently pushed)
+    repos = client.get_org_repos(login, per_page=20)
+
+    for repo_data in repos:
+        # Skip forks
+        if repo_data.get("fork"):
+            continue
+        _process_repo(client, owner_data, repo_data)
+
+    # Probe ATS platforms
+    try:
+        org = Organization.objects.get(github_login__iexact=login)
+        from apps.jobs.tasks import probe_org_ats
+        probe_org_ats.delay(org.id)
+    except Organization.DoesNotExist:
+        pass
+
+    return {"status": "completed", "login": login}
+
+
 def _build_search_queries(must_have, ai_signals, filters):
     """Build GitHub code search query strings from search config."""
     queries = []

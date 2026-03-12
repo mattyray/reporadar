@@ -32,6 +32,30 @@ class GitHubClient:
         resp.raise_for_status()
         return resp.json()
 
+    def search_users(self, query: str, per_page: int = 10) -> list[dict]:
+        """Search GitHub users and organizations by name. Rate limit: 30 req/min."""
+        resp = self.session.get(
+            f"{GITHUB_API_BASE}/search/users",
+            params={"q": query, "per_page": per_page},
+        )
+        resp.raise_for_status()
+        return resp.json().get("items", [])
+
+    def get_org_repos(self, org: str, per_page: int = 30, sort: str = "pushed") -> list[dict]:
+        """Get public repos for an org, sorted by most recently pushed."""
+        resp = self.session.get(
+            f"{GITHUB_API_BASE}/orgs/{org}/repos",
+            params={"per_page": per_page, "sort": sort, "type": "public"},
+        )
+        if resp.status_code == 404:
+            # Might be a user, not an org
+            resp = self.session.get(
+                f"{GITHUB_API_BASE}/users/{org}/repos",
+                params={"per_page": per_page, "sort": sort, "type": "public"},
+            )
+        resp.raise_for_status()
+        return resp.json()
+
     def get_repo(self, owner: str, repo: str) -> dict:
         """Get repository details."""
         resp = self.session.get(f"{GITHUB_API_BASE}/repos/{owner}/{repo}")

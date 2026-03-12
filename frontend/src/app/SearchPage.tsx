@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
-import type { SearchConfig, SearchQuery, SearchResult, ResumeProfile } from '../types/api';
+import type { SearchConfig, SearchQuery, SearchResult, ResumeProfile, CompanyLookupResult } from '../types/api';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import TechChipSelector from '../components/TechChipSelector';
@@ -165,6 +165,126 @@ function SearchResultsList({ searchId }: { searchId: string }) {
   );
 }
 
+function CompanySearch() {
+  const navigate = useNavigate();
+  const [query, setQuery] = useState('');
+  const [showResults, setShowResults] = useState(false);
+  const [scanningLogin, setScanningLogin] = useState<string | null>(null);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const { data: lookupResults, isFetching } = useQuery({
+    queryKey: ['companyLookup', query],
+    queryFn: () => api.searchCompany(query),
+    enabled: query.length >= 2,
+    staleTime: 30000,
+  });
+
+  // Poll for scan completion
+  const { data: scanStatus } = useQuery({
+    queryKey: ['companyScan', scanningLogin],
+    queryFn: () => api.getCompanyScanStatus(scanningLogin!),
+    enabled: !!scanningLogin,
+    refetchInterval: (q) => {
+      if (q.state.data?.status === 'completed') return false;
+      return 3000;
+    },
+  });
+
+  // Navigate when scan completes
+  useEffect(() => {
+    if (scanStatus?.status === 'completed' && scanStatus.organization) {
+      setScanningLogin(null);
+      navigate(`/prospects/${scanStatus.organization.id}`);
+    }
+  }, [scanStatus, navigate]);
+
+  const scanCompany = useMutation({
+    mutationFn: (login: string) => api.scanCompany(login),
+    onSuccess: (_data, login) => {
+      setScanningLogin(login);
+      setShowResults(false);
+    },
+  });
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setShowResults(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const results = lookupResults?.results ?? [];
+
+  return (
+    <div ref={ref} className="relative">
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setShowResults(true);
+            }}
+            onFocus={() => query.length >= 2 && setShowResults(true)}
+            placeholder="Search by company name (e.g. ycharts, stripe, vercel)"
+            className="w-full border border-gray-300 rounded-md px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          />
+          {isFetching && (
+            <div className="absolute right-3 top-3">
+              <svg className="animate-spin h-4 w-4 text-gray-400" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Scanning indicator */}
+      {scanningLogin && (
+        <div className="mt-2 flex items-center gap-2 text-sm text-blue-700 bg-blue-50 rounded-md px-3 py-2">
+          <svg className="animate-spin h-4 w-4 text-blue-500 flex-shrink-0" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+          <span>Scanning <strong>{scanningLogin}</strong> — pulling repos, detecting tech stacks, checking for open roles. This takes about a minute...</span>
+        </div>
+      )}
+
+      {/* Dropdown results */}
+      {showResults && query.length >= 2 && results.length > 0 && (
+        <div className="absolute z-10 mt-1 w-full bg-white rounded-lg shadow-lg border border-gray-200 max-h-80 overflow-y-auto">
+          {results.map((r: CompanyLookupResult) => (
+            <button
+              key={r.github_id}
+              onClick={() => scanCompany.mutate(r.login)}
+              disabled={scanCompany.isPending}
+              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 text-left cursor-pointer border-b border-gray-100 last:border-0"
+            >
+              <img src={r.avatar_url} alt="" className="w-8 h-8 rounded-full" />
+              <div className="min-w-0">
+                <span className="font-medium text-sm text-gray-900">{r.login}</span>
+                <span className="ml-2 px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded text-xs">
+                  {r.type}
+                </span>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {showResults && query.length >= 2 && !isFetching && results.length === 0 && (
+        <div className="absolute z-10 mt-1 w-full bg-white rounded-lg shadow-lg border border-gray-200 p-4 text-sm text-gray-500 text-center">
+          No GitHub organizations found for "{query}"
+        </div>
+      )}
+    </div>
+  );
+}
+
 const AI_TOOL_OPTIONS = [
   { label: 'Claude Code', value: 'CLAUDE.md' },
   { label: 'Cursor', value: '.cursor' },
@@ -277,6 +397,15 @@ export default function SearchPage() {
       </div>
 
       <SetupChecklist />
+
+      {/* Company lookup — search by name */}
+      {user?.github_connected && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-sm font-semibold text-gray-900 mb-1">Look up a specific company</h2>
+          <p className="text-xs text-gray-500 mb-3">Type a company or GitHub org name to scan their repos and tech stack.</p>
+          <CompanySearch />
+        </div>
+      )}
 
       {/* Resume upload shortcut — only show if no resume yet */}
       {!hasResume && (

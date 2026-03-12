@@ -55,6 +55,17 @@ export const api = {
   getSearchHistory: () =>
     request<{ results: import('../types/api').SearchQuery[] }>('/search/history/'),
 
+  // Company Lookup
+  searchCompany: (q: string) =>
+    request<{ results: import('../types/api').CompanyLookupResult[] }>(`/search/company/?q=${encodeURIComponent(q)}`),
+  scanCompany: (login: string) =>
+    request<{ detail: string; task_id: string; login: string }>('/search/company/scan/', {
+      method: 'POST',
+      body: JSON.stringify({ login }),
+    }),
+  getCompanyScanStatus: (login: string) =>
+    request<import('../types/api').CompanyScanResponse>(`/search/company/scan/status/?login=${encodeURIComponent(login)}`),
+
   // Prospects
   getProspects: () =>
     request<{ results: import('../types/api').Organization[] }>('/prospects/'),

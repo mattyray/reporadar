@@ -217,3 +217,16 @@ export interface JobCheckResponse {
   detail?: string;
   jobs?: JobListing[];
 }
+
+export interface CompanyLookupResult {
+  login: string;
+  github_id: number;
+  avatar_url: string;
+  type: 'Organization' | 'User';
+  url: string;
+}
+
+export interface CompanyScanResponse {
+  status: 'completed' | 'scanning';
+  organization?: Organization;
+}
