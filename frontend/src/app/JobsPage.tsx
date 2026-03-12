@@ -40,6 +40,7 @@ export default function JobsPage() {
   });
 
   const jobs: JobListing[] = jobsData?.results ?? [];
+  const totalCount: number = (jobsData as any)?.count ?? jobs.length;
 
   const handleSearch = () => {
     setSearchTriggered(true);
@@ -108,7 +109,10 @@ export default function JobsPage() {
 
       {jobs.length > 0 && (
         <div className="space-y-2">
-          <p className="text-sm text-gray-500">{jobs.length} job{jobs.length !== 1 ? 's' : ''} found</p>
+          <p className="text-sm text-gray-500">
+            {totalCount} job{totalCount !== 1 ? 's' : ''} found
+            {totalCount > jobs.length && ` (showing first ${jobs.length})`}
+          </p>
           {jobs.map((job: JobListing) => (
             <div
               key={job.id}

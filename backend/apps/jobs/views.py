@@ -3,8 +3,15 @@ from datetime import timedelta
 from django.db.models import Count, Q
 from django.utils import timezone
 from rest_framework import generics, status
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+
+class JobSearchPagination(PageNumberPagination):
+    page_size = 100
+    page_size_query_param = "page_size"
+    max_page_size = 500
 
 from apps.prospects.models import Organization
 
@@ -77,6 +84,7 @@ class JobSearchView(generics.ListAPIView):
     """GET /api/jobs/ — Search all active jobs, filterable by tech, location, department."""
 
     serializer_class = JobListingSerializer
+    pagination_class = JobSearchPagination
 
     def get_queryset(self):
         qs = (
@@ -88,16 +96,32 @@ class JobSearchView(generics.ListAPIView):
         # Filter by technologies (match any of the requested techs)
         techs = self.request.query_params.get("techs")
         if techs:
+            from django.db.models import Case, IntegerField, Value, When
+
             from .tech_extraction import TECH_KEYWORDS
 
             tech_list = [t.strip() for t in techs.split(",") if t.strip()]
             if tech_list:
                 # Normalize to canonical names (e.g. "react" → "React")
+                canonical_techs = [
+                    TECH_KEYWORDS.get(t.lower(), t) for t in tech_list
+                ]
                 tech_q = Q()
-                for tech in tech_list:
-                    canonical = TECH_KEYWORDS.get(tech.lower(), tech)
+                for canonical in canonical_techs:
                     tech_q |= Q(detected_techs__contains=[canonical])
                 qs = qs.filter(tech_q)
+
+                # Sort by relevance: count how many selected techs each job matches
+                match_cases = [
+                    When(detected_techs__contains=[ct], then=Value(1))
+                    for ct in canonical_techs
+                ]
+                qs = qs.annotate(
+                    match_count=sum(
+                        Case(mc, default=Value(0), output_field=IntegerField())
+                        for mc in match_cases
+                    )
+                ).order_by("-match_count", "-posted_at", "title")
 
         # Filter by location keyword
         location = self.request.query_params.get("location")
