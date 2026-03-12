@@ -14,10 +14,14 @@ from .serializers import (
 
 
 class ProspectListView(generics.ListAPIView):
-    """GET /api/prospects/ — List all discovered organizations."""
+    """GET /api/prospects/ — List organizations discovered by the current user's searches."""
 
     serializer_class = OrganizationListSerializer
-    queryset = Organization.objects.all().order_by("-updated_at")
+
+    def get_queryset(self):
+        return Organization.objects.filter(
+            search_results__search__user=self.request.user
+        ).distinct().order_by("-updated_at")
 
 
 class ProspectDetailView(generics.RetrieveAPIView):
