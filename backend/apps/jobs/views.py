@@ -88,12 +88,15 @@ class JobSearchView(generics.ListAPIView):
         # Filter by technologies (match any of the requested techs)
         techs = self.request.query_params.get("techs")
         if techs:
+            from .tech_extraction import TECH_KEYWORDS
+
             tech_list = [t.strip() for t in techs.split(",") if t.strip()]
             if tech_list:
-                # Filter jobs where detected_techs contains any of the requested techs
+                # Normalize to canonical names (e.g. "react" → "React")
                 tech_q = Q()
                 for tech in tech_list:
-                    tech_q |= Q(detected_techs__contains=[tech])
+                    canonical = TECH_KEYWORDS.get(tech.lower(), tech)
+                    tech_q |= Q(detected_techs__contains=[canonical])
                 qs = qs.filter(tech_q)
 
         # Filter by location keyword
