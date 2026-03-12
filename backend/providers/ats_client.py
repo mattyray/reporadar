@@ -4,8 +4,10 @@ Supports Greenhouse, Lever, Ashby, and Workable. All endpoints are public, no au
 """
 
 import logging
+import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
+from urllib.parse import urljoin, urlparse
 
 import requests
 
@@ -36,8 +38,105 @@ class ProbeResult:
     platforms: dict[str, bool] = field(default_factory=dict)
 
 
+ATS_URL_PATTERNS = {
+    "greenhouse": [
+        r"boards\.greenhouse\.io/([a-zA-Z0-9_-]+)",
+        r"job-boards\.greenhouse\.io/([a-zA-Z0-9_-]+)",
+        r"boards-api\.greenhouse\.io/v1/boards/([a-zA-Z0-9_-]+)",
+    ],
+    "lever": [
+        r"jobs\.lever\.co/([a-zA-Z0-9_-]+)",
+        r"api\.lever\.co/v0/postings/([a-zA-Z0-9_-]+)",
+    ],
+    "ashby": [
+        r"jobs\.ashbyhq\.com/([a-zA-Z0-9_.-]+)",
+        r"api\.ashbyhq\.com/posting-api/job-board/([a-zA-Z0-9_.-]+)",
+    ],
+    "workable": [
+        r"apply\.workable\.com/([a-zA-Z0-9_-]+)",
+    ],
+}
+
+# Links on a homepage that likely lead to a careers/jobs page
+CAREERS_LINK_PATTERN = re.compile(
+    r'href=["\']([^"\']*(?:career|jobs?|work-with-us|join-us|hiring|openings|open-roles|positions|team)[^"\']*)["\']',
+    re.IGNORECASE,
+)
+
+
 class ATSClient:
     """Fetches job listings from public ATS board APIs."""
+
+    def discover_ats_from_website(self, website_url: str) -> dict[str, str]:
+        """Scrape a company website to find ATS job board URLs.
+
+        Fetches the homepage, looks for careers/jobs links, fetches those too,
+        then scans all HTML for known ATS URL patterns.
+
+        Returns dict of {platform: slug} for any discovered ATS boards.
+        """
+        discovered = {}
+        pages_to_scan = []
+
+        # Normalize URL
+        if not website_url.startswith(("http://", "https://")):
+            website_url = f"https://{website_url}"
+
+        # Fetch homepage
+        try:
+            resp = requests.get(
+                website_url,
+                timeout=REQUEST_TIMEOUT,
+                headers={"User-Agent": "Mozilla/5.0 (compatible; RepoRadar/1.0)"},
+                allow_redirects=True,
+            )
+            if resp.status_code == 200:
+                pages_to_scan.append(resp.text)
+
+                # Look for careers/jobs links
+                career_links = CAREERS_LINK_PATTERN.findall(resp.text)
+                base_url = resp.url  # after redirects
+                seen_urls = set()
+
+                for link in career_links[:5]:  # cap at 5 links
+                    full_url = _resolve_url(base_url, link)
+                    if full_url and full_url not in seen_urls:
+                        seen_urls.add(full_url)
+                        try:
+                            sub_resp = requests.get(
+                                full_url,
+                                timeout=REQUEST_TIMEOUT,
+                                headers={"User-Agent": "Mozilla/5.0 (compatible; RepoRadar/1.0)"},
+                                allow_redirects=True,
+                            )
+                            if sub_resp.status_code == 200:
+                                pages_to_scan.append(sub_resp.text)
+                                # Also check if we redirected to an ATS domain directly
+                                pages_to_scan.append(sub_resp.url)
+                        except requests.RequestException:
+                            continue
+        except requests.RequestException as e:
+            logger.info("Could not fetch website %s: %s", website_url, e)
+            return discovered
+
+        # Scan all collected HTML for ATS URL patterns
+        all_text = "\n".join(pages_to_scan)
+        for platform, patterns in ATS_URL_PATTERNS.items():
+            if platform in discovered:
+                continue
+            for pattern in patterns:
+                match = re.search(pattern, all_text)
+                if match:
+                    slug = match.group(1).lower().rstrip("/")
+                    # Skip generic slugs that aren't real company boards
+                    if slug not in ("api", "www", "app", "embed", "widget", "v1", "v0"):
+                        discovered[platform] = slug
+                        break
+
+        if discovered:
+            logger.info("Discovered ATS from %s: %s", website_url, discovered)
+
+        return discovered
 
     def probe_company(self, slug: str) -> dict[str, bool]:
         """Try a slug across all 4 platforms in parallel. Returns which ones respond."""
@@ -233,7 +332,20 @@ class ATSClient:
 
 def _strip_html(html: str) -> str:
     """Simple HTML tag stripper. Good enough for extracting text from job descriptions."""
-    import re
     text = re.sub(r"<[^>]+>", " ", html)
     text = re.sub(r"\s+", " ", text)
     return text.strip()
+
+
+def _resolve_url(base_url: str, link: str) -> str | None:
+    """Resolve a relative or absolute link against a base URL."""
+    if not link:
+        return None
+    # Skip javascript: and mailto: links
+    if link.startswith(("javascript:", "mailto:", "#")):
+        return None
+    # Absolute URL
+    if link.startswith(("http://", "https://")):
+        return link
+    # Relative URL
+    return urljoin(base_url, link)

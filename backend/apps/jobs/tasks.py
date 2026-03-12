@@ -30,8 +30,24 @@ def probe_org_ats(org_id: int):
 
     client = ATSClient()
     slug = org.github_login.lower()
+    found_platforms = set()
 
-    # Also try the org name (without spaces) as a fallback slug
+    def _save_and_fetch(platform, ats_slug):
+        """Create/update mapping and fetch jobs for a discovered ATS board."""
+        mapping, created = ATSMapping.objects.update_or_create(
+            ats_platform=platform,
+            ats_slug=ats_slug,
+            defaults={
+                "organization": org,
+                "company_name": org.name or org.github_login,
+                "is_verified": True,
+                "last_checked_at": timezone.now(),
+            },
+        )
+        _refresh_mapping_jobs(client, mapping)
+        found_platforms.add(platform)
+
+    # Strategy 1: Try slug variants (github_login, name variants)
     slugs_to_try = [slug]
     if org.name and org.name.lower().replace(" ", "") != slug:
         slugs_to_try.append(org.name.lower().replace(" ", ""))
@@ -40,26 +56,24 @@ def probe_org_ats(org_id: int):
 
     for try_slug in slugs_to_try:
         results = client.probe_company(try_slug)
-
         for platform, found in results.items():
-            if not found:
-                continue
+            if found and platform not in found_platforms:
+                _save_and_fetch(platform, try_slug)
 
-            mapping, created = ATSMapping.objects.update_or_create(
-                ats_platform=platform,
-                ats_slug=try_slug,
-                defaults={
-                    "organization": org,
-                    "company_name": org.name or org.github_login,
-                    "is_verified": True,
-                    "last_checked_at": timezone.now(),
-                },
-            )
+    # Strategy 2: Scrape company website for ATS URLs (catches mismatched slugs)
+    if org.website:
+        discovered = client.discover_ats_from_website(org.website)
+        for platform, ats_slug in discovered.items():
+            if platform not in found_platforms:
+                # Verify the discovered slug actually works
+                verify = client.probe_company(ats_slug)
+                if verify.get(platform):
+                    _save_and_fetch(platform, ats_slug)
 
-            # Fetch and store jobs
-            _refresh_mapping_jobs(client, mapping)
-
-    logger.info("probe_org_ats completed for org %s (%s)", org_id, org.github_login)
+    logger.info(
+        "probe_org_ats completed for org %s (%s): found %s",
+        org_id, org.github_login, list(found_platforms) or "none",
+    )
 
 
 @shared_task
