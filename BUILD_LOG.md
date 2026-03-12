@@ -284,6 +284,35 @@ Built an AI tool selector in the search form — 15 purple toggle chips. Users c
 **Content angle:** "How I detect which AI tools companies use — by reading their config files"
 **Content angle:** "The GitHub data you're already paying for but not using"
 
+### 2026-03-12 — AI Repo Analysis: Reading Code So You Don't Have To
+
+Built a feature that sends a repo's entire structure to Claude and gets back a deep analysis: what the project does, its full tech stack, architecture patterns, code quality signals, team maturity estimate, and a "why work here" section for job seekers. The whole thing runs as a Celery background task and takes 30-60 seconds per repo.
+
+The approach: fetch the repo's file tree via GitHub's Trees API (single request, returns every file path), then selectively pull ~50 key files — README, dependency files, config files, entry points, CI/CD configs. Each file is capped at 8K chars, total context capped at 60K chars. Send all of it to Claude Sonnet with a structured JSON prompt. No repo cloning, no git operations, pure API calls.
+
+The prompt engineering was the interesting part. Claude returns a structured JSON object with: `tech_stack` (languages, frameworks, databases, infrastructure, notable libraries, AI tools), `architecture` (pattern name, description, key directories with purposes), `code_quality` (tests, CI/CD, linting, type checking, documentation), `maturity` (stage, signals, team size estimate, activity assessment), and `interesting_for_job_seekers` (why work here, tech culture signals, potential roles). That last section is what makes this different from generic code analysis — it's opinionated about whether this is a place worth applying to.
+
+Hit a UX problem immediately: users kept clicking the analyze button because there was no feedback that anything was happening. Added a spinner with "takes 30-60 seconds" text, plus stale task detection — if an analysis has been stuck for 5+ minutes, the button unlocks so you can retry. The 409 Conflict response for in-progress analyses prevents duplicate Celery tasks from piling up.
+
+**Content angle:** "I built an AI that reads GitHub repos and tells you if you should work there"
+**Content angle:** "The UX mistake that made users spam my API — and the one-line fix"
+
+### 2026-03-12 — Company Search: "Just Let Me Type a Name"
+
+The original flow only found companies through tech stack search — you'd search for "Django + React" and get a list of orgs. But what if you already know the company? A friend says "check out YCharts, they use Django" and you want to scan them directly. You'd have to search for their exact tech stack and hope they show up. Terrible UX.
+
+Built a company search that lets you type a name and find their GitHub org instantly. Three-part architecture:
+
+1. **Autocomplete** — As you type, hits GitHub's Users Search API (`/search/users?q=ycharts+type:org`) with 500ms debounce. Returns org name, avatar, and login. Dropdown appears below the input with clickable results.
+
+2. **Scan** — Click a result, fires a Celery task that fetches the org's profile, grabs their top 20 repos (skipping forks), runs the full detection pipeline on each (dependency parsing, AI tool detection, infra signals), and probes all 4 ATS platforms for job listings. Reuses the exact same `_process_repo` function from tech stack search — zero code duplication.
+
+3. **Status polling** — Frontend polls every 3 seconds. When done, redirects to the prospect detail page where you can see all their repos, tech stack, and jobs. Same page you'd see from a tech stack search result.
+
+The `get_org_repos` method has a nice fallback: tries the `/orgs/{login}/repos` endpoint first, and if it 404s (because the account is a User, not an Organization), falls back to `/users/{login}/repos`. GitHub's search API returns both types, so this handles either transparently.
+
+**Content angle:** "Two paths to the same data — why good products have multiple entry points"
+
 ---
 
 ## Phase 3: Contact Enrichment — [dates TBD]
@@ -321,3 +350,6 @@ Built an AI tool selector in the search form — 15 purple toggle chips. Users c
 | "I thought my app already existed" | 2026-03-07 competitive landscape | Medium — founder story |
 | "How TDD let me add a major feature without touching a single existing test" | 2026-03-07 132 tests | Medium — engineering credibility |
 | "Four bugs stacked on top of each other — deploying Django to Railway" | 2026-03-08 Railway deployment | High — relatable war story |
+| "I built an AI that reads GitHub repos and tells you if you should work there" | 2026-03-12 AI repo analysis | High — unique feature, AI angle |
+| "The UX mistake that made users spam my API" | 2026-03-12 analyze button UX | Medium — relatable UX lesson |
+| "Two paths to the same data — why good products need multiple entry points" | 2026-03-12 company search | Medium — product thinking |
