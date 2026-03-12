@@ -91,5 +91,15 @@ LOGGING = {
             "level": "DEBUG",
             "propagate": False,
         },
+        "apps": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "celery": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
     },
 }
