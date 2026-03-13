@@ -159,4 +159,5 @@ urlpatterns = [
     path("api/resumes/", include("apps.resumes.urls")),
     path("api/outreach/", include("apps.outreach.urls")),
     path("api/jobs/", include("apps.jobs.urls")),
+    path("api/analytics/", include("apps.analytics.urls")),
 ]

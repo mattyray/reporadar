@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import Layout from './components/Layout';
+import AnalyticsTracker from './components/AnalyticsTracker';
 import LandingPage from './app/LandingPage';
 import LoginPage from './app/LoginPage';
 import AuthCallbackPage from './app/AuthCallbackPage';
@@ -33,6 +34,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
+    <>
+    <AnalyticsTracker />
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
@@ -53,5 +56,6 @@ export default function App() {
       </Route>
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
+    </>
   );
 }

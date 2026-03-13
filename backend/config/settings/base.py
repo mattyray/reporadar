@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "apps.resumes",
     "apps.outreach",
     "apps.jobs",
+    "apps.analytics",
 ]
 
 MIDDLEWARE = [
