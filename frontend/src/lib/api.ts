@@ -108,6 +108,8 @@ export const api = {
         ...(contactId && { contact_id: contactId }),
       }),
     }),
+  getOutreachStatus: (id: string) =>
+    request<import('../types/api').OutreachMessage>(`/outreach/${id}/status/`),
   getOutreachHistory: () =>
     request<{ results: import('../types/api').OutreachMessage[] }>('/outreach/history/'),
 

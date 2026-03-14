@@ -9,8 +9,8 @@ class OutreachMessageSerializer(serializers.ModelSerializer):
     class Meta:
         model = OutreachMessage
         fields = [
-            "id", "organization_name", "message_type", "subject",
-            "body", "context_used", "created_at",
+            "id", "organization_name", "message_type", "status",
+            "subject", "body", "error", "created_at",
         ]
 
 

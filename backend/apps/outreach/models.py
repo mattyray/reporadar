@@ -25,9 +25,17 @@ class OutreachMessage(models.Model):
         blank=True,
         related_name="outreach_messages",
     )
+    STATUS_CHOICES = [
+        ("generating", "Generating"),
+        ("completed", "Completed"),
+        ("failed", "Failed"),
+    ]
+
     message_type = models.CharField(max_length=20, choices=MESSAGE_TYPE_CHOICES)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="completed")
     subject = models.CharField(max_length=200, blank=True)
-    body = models.TextField()
+    body = models.TextField(blank=True)
+    error = models.TextField(blank=True)
     context_used = models.JSONField(default=dict)
     created_at = models.DateTimeField(auto_now_add=True)
 

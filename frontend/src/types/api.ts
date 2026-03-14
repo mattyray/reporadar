@@ -189,8 +189,10 @@ export interface OutreachMessage {
   id: string;
   organization_name: string;
   message_type: string;
+  status: 'generating' | 'completed' | 'failed';
   subject: string;
   body: string;
+  error: string;
   created_at: string;
 }
 

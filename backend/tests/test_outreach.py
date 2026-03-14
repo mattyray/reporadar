@@ -9,7 +9,8 @@ from rest_framework.test import APIClient
 
 from apps.enrichment.models import OrganizationContact
 from apps.outreach.models import OutreachMessage
-from apps.outreach.views import _build_prompt, _parse_subject
+from apps.outreach.views import _build_prompt
+from apps.outreach.views import _parse_subject
 from apps.prospects.models import Organization, OrganizationRepo, RepoStackDetection
 from apps.resumes.models import ResumeProfile
 
@@ -120,7 +121,7 @@ def test_build_prompt_email_length_guide():
 
 
 @pytest.mark.django_db
-@patch("apps.outreach.views.anthropic")
+@patch("apps.outreach.tasks.anthropic")
 def test_generate_outreach_success(mock_anthropic, api_client, org_with_stack, resume):
     mock_message = MagicMock()
     mock_message.content = [MagicMock(text="Hi Jane, I noticed Acme uses Django...")]
@@ -134,9 +135,18 @@ def test_generate_outreach_success(mock_anthropic, api_client, org_with_stack, r
             "message_type": "email",
         })
 
-    assert response.status_code == 201
-    assert "Hi Jane" in response.data["body"]
+    assert response.status_code == 202
     assert OutreachMessage.objects.count() == 1
+    # In eager mode, task runs inline before .delay() returns
+    outreach = OutreachMessage.objects.first()
+    assert outreach.status == "completed"
+    assert "Hi Jane" in outreach.body
+
+    # Test the status polling endpoint
+    status_response = api_client.get(f"/api/outreach/{outreach.id}/status/")
+    assert status_response.status_code == 200
+    assert status_response.data["status"] == "completed"
+    assert "Hi Jane" in status_response.data["body"]
 
 
 @pytest.mark.django_db
@@ -250,7 +260,7 @@ def test_build_prompt_linkedin_no_subject():
 
 
 @pytest.mark.django_db
-@patch("apps.outreach.views.anthropic")
+@patch("apps.outreach.tasks.anthropic")
 def test_email_outreach_parses_subject(mock_anthropic, api_client, org_with_stack, resume):
     mock_message = MagicMock()
     mock_message.content = [MagicMock(text="Subject: Love Your Django Stack\n\nHi, I saw your open roles...")]
@@ -264,6 +274,7 @@ def test_email_outreach_parses_subject(mock_anthropic, api_client, org_with_stac
             "message_type": "email",
         })
 
-    assert response.status_code == 201
-    assert response.data["subject"] == "Love Your Django Stack"
-    assert response.data["body"].startswith("Hi, I saw")
+    assert response.status_code == 202
+    outreach = OutreachMessage.objects.first()
+    assert outreach.subject == "Love Your Django Stack"
+    assert outreach.body.startswith("Hi, I saw")

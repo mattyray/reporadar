@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
@@ -72,6 +72,7 @@ export default function OutreachPage() {
   const [orgId, setOrgId] = useState(initialOrgId);
   const [messageType, setMessageType] = useState('email');
   const [generatedMessage, setGeneratedMessage] = useState<OutreachMessage | null>(null);
+  const [pollingId, setPollingId] = useState<string | null>(null);
 
   const { data: prospects } = useQuery({
     queryKey: ['prospects'],
@@ -83,13 +84,40 @@ export default function OutreachPage() {
     queryFn: api.getOutreachHistory,
   });
 
+  // Poll for outreach generation completion
+  const { data: polledMessage } = useQuery({
+    queryKey: ['outreachStatus', pollingId],
+    queryFn: () => api.getOutreachStatus(pollingId!),
+    enabled: !!pollingId,
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      if (status === 'completed' || status === 'failed') return false;
+      return 2000;
+    },
+  });
+
+  useEffect(() => {
+    if (polledMessage && (polledMessage.status === 'completed' || polledMessage.status === 'failed')) {
+      setGeneratedMessage(polledMessage);
+      setPollingId(null);
+      queryClient.invalidateQueries({ queryKey: ['outreachHistory'] });
+    }
+  }, [polledMessage, queryClient]);
+
   const generate = useMutation({
     mutationFn: () => api.generateOutreach(Number(orgId), messageType),
     onSuccess: (data) => {
-      setGeneratedMessage(data);
-      queryClient.invalidateQueries({ queryKey: ['outreachHistory'] });
+      if (data.status === 'generating') {
+        setPollingId(data.id);
+        setGeneratedMessage(null);
+      } else {
+        setGeneratedMessage(data);
+        queryClient.invalidateQueries({ queryKey: ['outreachHistory'] });
+      }
     },
   });
+
+  const isGenerating = generate.isPending || !!pollingId;
 
   const orgs = prospects?.results ?? [];
 
@@ -152,10 +180,10 @@ export default function OutreachPage() {
         </div>
         <button
           onClick={() => generate.mutate()}
-          disabled={!orgId || generate.isPending}
+          disabled={!orgId || isGenerating}
           className="bg-purple-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-purple-700 disabled:opacity-50 cursor-pointer"
         >
-          {generate.isPending ? 'Generating...' : 'Generate Message'}
+          {isGenerating ? 'Generating...' : 'Generate Message'}
         </button>
       </div>
 
@@ -165,12 +193,25 @@ export default function OutreachPage() {
         </div>
       )}
 
-      {generatedMessage && (
+      {generatedMessage && generatedMessage.status === 'failed' && (
+        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 text-sm">
+          Message generation failed: {generatedMessage.error || 'Unknown error'}
+        </div>
+      )}
+
+      {generatedMessage && generatedMessage.status === 'completed' && (
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-lg font-medium text-gray-900">{generatedMessage.subject}</h3>
+            <h3 className="text-lg font-medium text-gray-900">
+              {generatedMessage.subject || generatedMessage.message_type}
+            </h3>
             <button
-              onClick={() => navigator.clipboard.writeText(generatedMessage.body)}
+              onClick={() => {
+                const text = generatedMessage.subject
+                  ? `Subject: ${generatedMessage.subject}\n\n${generatedMessage.body}`
+                  : generatedMessage.body;
+                navigator.clipboard.writeText(text);
+              }}
               className="text-xs text-indigo-600 hover:underline cursor-pointer"
             >
               Copy to clipboard

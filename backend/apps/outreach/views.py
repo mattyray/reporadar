@@ -1,8 +1,5 @@
-import os
-
 import re
 
-import anthropic
 from django.db import models
 from rest_framework import generics, status
 from rest_framework.response import Response
@@ -15,10 +12,11 @@ from apps.resumes.models import ResumeProfile
 
 from .models import OutreachMessage
 from .serializers import OutreachGenerateSerializer, OutreachMessageSerializer
+from .tasks import generate_outreach_message
 
 
 class OutreachGenerateView(APIView):
-    """POST /api/outreach/generate/ — Generate a personalized outreach message."""
+    """POST /api/outreach/generate/ — Generate a personalized outreach message (async)."""
 
     def post(self, request):
         serializer = OutreachGenerateSerializer(data=request.data)
@@ -85,54 +83,36 @@ class OutreachGenerateView(APIView):
             "message_type": serializer.validated_data["message_type"],
         }
 
-        # Generate with Claude API
-        api_key = os.environ.get("ANTHROPIC_API_KEY")
-        if not api_key:
-            return Response(
-                {"detail": "Anthropic API key not configured on server."},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE,
-            )
-
-        try:
-            client = anthropic.Anthropic(api_key=api_key)
-            message = client.messages.create(
-                model="claude-sonnet-4-6",
-                max_tokens=1024,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": _build_prompt(context),
-                    }
-                ],
-            )
-            raw_text = message.content[0].text
-        except Exception as e:
-            return Response(
-                {"detail": f"AI generation failed: {str(e)}"},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE,
-            )
-
-        # Parse subject line from email responses
-        subject = ""
-        body = raw_text
-        if serializer.validated_data["message_type"] == "email":
-            subject, body = _parse_subject(raw_text)
-
-        # Save the generated message
+        # Create message in "generating" state, dispatch Celery task
         outreach = OutreachMessage.objects.create(
             user=request.user,
             organization=org,
             contact=contact,
             message_type=serializer.validated_data["message_type"],
-            subject=subject,
-            body=body,
+            status="generating",
             context_used=context,
         )
 
+        generate_outreach_message.delay(str(outreach.id))
+
         return Response(
             OutreachMessageSerializer(outreach).data,
-            status=status.HTTP_201_CREATED,
+            status=status.HTTP_202_ACCEPTED,
         )
+
+
+class OutreachStatusView(APIView):
+    """GET /api/outreach/{id}/status/ — Poll for generation completion."""
+
+    def get(self, request, pk):
+        try:
+            outreach = OutreachMessage.objects.get(pk=pk, user=request.user)
+        except OutreachMessage.DoesNotExist:
+            return Response(
+                {"detail": "Message not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(OutreachMessageSerializer(outreach).data)
 
 
 class OutreachHistoryView(generics.ListAPIView):
