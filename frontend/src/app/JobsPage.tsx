@@ -151,7 +151,7 @@ export default function JobsPage() {
               setSelectedDays('');
               setRemoteOnly(false);
               setSearchTriggered(false);
-              setResumeApplied(false);
+              setResumeApplied(true);  // prevent resume techs from re-populating
             }}
             className="px-4 py-2.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer"
           >

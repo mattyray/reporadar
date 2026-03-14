@@ -478,10 +478,8 @@ export default function SearchPage() {
         </div>
       )}
 
-      {/* Resume upload shortcut — only show if no resume yet */}
-      {!hasResume && (
-        <ResumeUploadBanner onParsed={handleResumeParsed} />
-      )}
+      {/* Resume upload — show for new users and existing users who want to re-upload */}
+      <ResumeUploadBanner onParsed={handleResumeParsed} hasExisting={hasResume} />
 
       {/* Resume applied indicator */}
       {hasResume && selectedTechs.length > 0 && (

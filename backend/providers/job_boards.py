@@ -12,7 +12,7 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-HEADERS = {"User-Agent": "RepoRadar/1.0 (job aggregator)"}
+HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; RepoRadar/1.0)"}
 REQUEST_TIMEOUT = 30
 
 
