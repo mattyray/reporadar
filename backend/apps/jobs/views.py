@@ -116,9 +116,12 @@ class JobSearchView(generics.ListAPIView):
                     tl = t.lower()
                     canonical = TECH_KEYWORDS.get(tl)
                     if not canonical:
-                        # Try substring: "claude api" should match "claude" → "Claude"
+                        # Try word-boundary match: "claude api" matches "claude"
+                        # but "django" must NOT match "go"
+                        import re as _re
                         for kw, cn in TECH_KEYWORDS.items():
-                            if kw in tl or tl in kw:
+                            if (_re.search(rf"\b{_re.escape(kw)}\b", tl) or
+                                    _re.search(rf"\b{_re.escape(tl)}\b", kw)):
                                 canonical = cn
                                 break
                     canonical_techs.append(canonical or t)

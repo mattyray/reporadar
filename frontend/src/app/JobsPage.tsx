@@ -270,7 +270,10 @@ export default function JobsPage() {
                               selectedTechs.some(t => {
                                 const tl = t.toLowerCase();
                                 const thl = tech.toLowerCase();
-                                return tl === thl || tl.includes(thl) || thl.includes(tl);
+                                // Exact match or word-boundary match (avoid "django" matching "go")
+                                if (tl === thl) return true;
+                                const re = new RegExp(`\\b${thl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`);
+                                return re.test(tl);
                               })
                                 ? 'bg-green-100 text-green-700'
                                 : 'bg-gray-100 text-gray-600'

@@ -56,8 +56,10 @@ def parse_resume(self, profile_id: int):
         tl = t.lower()
         canonical = TECH_KEYWORDS.get(tl)
         if not canonical:
+            import re as _re
             for kw, cn in TECH_KEYWORDS.items():
-                if kw in tl or tl in kw:
+                if (_re.search(rf"\b{_re.escape(kw)}\b", tl) or
+                        _re.search(rf"\b{_re.escape(tl)}\b", kw)):
                     canonical = cn
                     break
         final = canonical or t
