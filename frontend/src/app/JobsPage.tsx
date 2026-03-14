@@ -135,13 +135,29 @@ export default function JobsPage() {
           </label>
         </div>
 
-        <button
-          onClick={handleSearch}
-          disabled={isLoading}
-          className="mt-4 w-full bg-indigo-600 text-white rounded-md py-2.5 px-4 font-medium hover:bg-indigo-700 disabled:opacity-50 cursor-pointer"
-        >
-          {isFetching ? 'Searching...' : 'Search Jobs'}
-        </button>
+        <div className="mt-4 flex gap-2">
+          <button
+            onClick={handleSearch}
+            disabled={isLoading}
+            className="flex-1 bg-indigo-600 text-white rounded-md py-2.5 px-4 font-medium hover:bg-indigo-700 disabled:opacity-50 cursor-pointer"
+          >
+            {isFetching ? 'Searching...' : 'Search Jobs'}
+          </button>
+          <button
+            onClick={() => {
+              setSelectedTechs([]);
+              setLocationFilter('');
+              setSelectedSource('');
+              setSelectedDays('');
+              setRemoteOnly(false);
+              setSearchTriggered(false);
+              setResumeApplied(false);
+            }}
+            className="px-4 py-2.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer"
+          >
+            Reset
+          </button>
+        </div>
       </div>
 
       {/* Source tabs */}
