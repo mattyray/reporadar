@@ -204,6 +204,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.jobs.tasks.fetch_unfetched_mappings",
         "schedule": crontab(hour=8, minute=0),  # 8 AM UTC daily
     },
+    "refresh-resume-job-matches": {
+        "task": "apps.resumes.tasks.refresh_all_job_matches",
+        "schedule": crontab(hour=9, minute=0),  # 9 AM UTC daily (after jobs refresh)
+    },
 }
 
 # Redis cache

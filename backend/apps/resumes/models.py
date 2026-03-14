@@ -20,3 +20,28 @@ class ResumeProfile(models.Model):
 
     def __str__(self):
         return f"Resume: {self.user.email}"
+
+
+class ResumeJobMatch(models.Model):
+    """A job that matches a user's resume tech stack."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="job_matches"
+    )
+    job = models.ForeignKey(
+        "jobs.JobListing", on_delete=models.CASCADE, related_name="resume_matches"
+    )
+    match_score = models.IntegerField(default=0)
+    matched_techs = models.JSONField(default=list)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("user", "job")
+        ordering = ["-match_score", "-created_at"]
+        indexes = [
+            models.Index(fields=["user", "-match_score"]),
+        ]
+
+    def __str__(self):
+        return f"{self.user.email} -> {self.job.title} ({self.match_score})"

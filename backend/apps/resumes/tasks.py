@@ -55,7 +55,33 @@ def parse_resume(self, profile_id: int):
         "years_experience", "story_hook", "parsed_at",
     ])
 
-    return {"status": "parsed", "profile_id": profile_id}
+    # Auto-match jobs against the parsed tech stack
+    from .matching import match_jobs_for_user
+
+    match_count = match_jobs_for_user(profile.user_id)
+
+    return {"status": "parsed", "profile_id": profile_id, "matched_jobs": match_count}
+
+
+@shared_task
+def refresh_all_job_matches():
+    """Re-match all users with resume profiles against current jobs.
+
+    Run daily via Celery Beat to pick up new job listings.
+    """
+    from .matching import match_jobs_for_user
+    from .models import ResumeProfile
+
+    user_ids = list(
+        ResumeProfile.objects.filter(parsed_at__isnull=False)
+        .values_list("user_id", flat=True)
+    )
+
+    total_matches = 0
+    for user_id in user_ids:
+        total_matches += match_jobs_for_user(user_id)
+
+    return {"users_processed": len(user_ids), "total_matches": total_matches}
 
 
 def _extract_text(profile):

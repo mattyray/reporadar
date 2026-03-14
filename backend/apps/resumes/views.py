@@ -1,9 +1,10 @@
 from rest_framework import status
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import ResumeProfile
+from .models import ResumeJobMatch, ResumeProfile
 from .serializers import ResumeProfileSerializer, ResumeUploadSerializer
 
 
@@ -72,3 +73,42 @@ class ResumeProfileView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class MatchedJobsPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = "page_size"
+    max_page_size = 100
+
+
+class MatchedJobsView(APIView):
+    """GET /api/resumes/matched-jobs/ — Jobs matching the user's resume."""
+
+    def get(self, request):
+        from apps.jobs.serializers import JobListingSerializer
+
+        matches = (
+            ResumeJobMatch.objects.filter(user=request.user)
+            .select_related("job", "job__ats_mapping", "job__ats_mapping__organization")
+            .order_by("-match_score", "-created_at")
+        )
+
+        # Manual pagination
+        paginator = MatchedJobsPagination()
+        page = paginator.paginate_queryset(matches, request)
+
+        results = []
+        for match in page:
+            job_data = JobListingSerializer(match.job).data
+            job_data["match_score"] = match.match_score
+            job_data["matched_techs"] = match.matched_techs
+            results.append(job_data)
+
+        return paginator.get_paginated_response(results)
+
+    def post(self, request):
+        """POST /api/resumes/matched-jobs/ — Trigger re-matching."""
+        from .matching import match_jobs_for_user
+
+        count = match_jobs_for_user(request.user.id)
+        return Response({"matched": count})
