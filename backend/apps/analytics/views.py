@@ -2,6 +2,7 @@ import logging
 from datetime import date
 
 import requests as http_requests
+from django.core.cache import cache
 from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views import View
@@ -160,3 +161,42 @@ class TrackView(View):
         )
 
         return JsonResponse({"page_view_id": pv.id})
+
+
+class StatsView(View):
+    """GET /api/analytics/stats/ — public stats for landing page (cached 1hr)."""
+
+    def get(self, request):
+        stats = cache.get("public_stats")
+        if stats:
+            return JsonResponse(stats)
+
+        from apps.jobs.models import JobListing
+        from apps.prospects.models import Organization
+
+        stats = {
+            "active_jobs": JobListing.objects.filter(is_active=True).count(),
+            "companies": Organization.objects.count(),
+            "tech_count": (
+                JobListing.objects.filter(is_active=True)
+                .exclude(detected_techs=[])
+                .values_list("detected_techs", flat=True)
+                .distinct()
+                .count()
+            ),
+        }
+        # Count unique techs across all active jobs
+        from django.db.models import Func, CharField
+        raw_techs = (
+            JobListing.objects.filter(is_active=True)
+            .exclude(detected_techs=[])
+            .values_list("detected_techs", flat=True)
+        )
+        unique_techs = set()
+        for techs_list in raw_techs:
+            if techs_list:
+                unique_techs.update(t.lower() for t in techs_list)
+        stats["tech_count"] = len(unique_techs)
+
+        cache.set("public_stats", stats, 3600)  # Cache for 1 hour
+        return JsonResponse(stats)

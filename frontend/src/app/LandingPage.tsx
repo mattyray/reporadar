@@ -1,6 +1,20 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
+function useStats() {
+  const [stats, setStats] = useState<{ active_jobs: number; companies: number; tech_count: number } | null>(null);
+  useEffect(() => {
+    fetch('/api/analytics/stats/')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => data && setStats(data))
+      .catch(() => {});
+  }, []);
+  return stats;
+}
+
 export default function LandingPage() {
+  const stats = useStats();
+
   return (
     <div className="min-h-screen bg-white">
       {/* Nav */}
@@ -17,12 +31,13 @@ export default function LandingPage() {
       {/* Hero */}
       <section className="max-w-4xl mx-auto px-6 pt-20 pb-16 text-center">
         <h1 className="text-5xl font-bold text-gray-900 mb-6 leading-tight">
-          Find companies building with{' '}
+          Find jobs at companies that use{' '}
           <span className="text-blue-600">your tech stack</span>
         </h1>
         <p className="text-xl text-gray-600 mb-10 max-w-2xl mx-auto">
-          RepoRadar scans GitHub organizations to find companies using the technologies you know.
-          Detect their stack, find engineering contacts, and generate personalized outreach — all from one place.
+          Upload your resume and instantly see matching jobs from thousands of companies.
+          RepoRadar combines job boards, ATS feeds, and GitHub analysis to surface
+          roles that match your skills — not just keywords.
         </p>
         <Link
           to="/login"
@@ -30,6 +45,29 @@ export default function LandingPage() {
         >
           Get started free
         </Link>
+
+        {stats && (stats.active_jobs > 0 || stats.companies > 0) && (
+          <div className="mt-10 flex items-center justify-center gap-8 text-sm text-gray-500">
+            {stats.active_jobs > 0 && (
+              <div>
+                <span className="text-2xl font-bold text-gray-900">{stats.active_jobs.toLocaleString()}</span>
+                <span className="ml-1">active jobs</span>
+              </div>
+            )}
+            {stats.companies > 0 && (
+              <div>
+                <span className="text-2xl font-bold text-gray-900">{stats.companies.toLocaleString()}</span>
+                <span className="ml-1">companies</span>
+              </div>
+            )}
+            {stats.tech_count > 0 && (
+              <div>
+                <span className="text-2xl font-bold text-gray-900">{stats.tech_count.toLocaleString()}</span>
+                <span className="ml-1">technologies tracked</span>
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
       {/* How it works */}
@@ -41,18 +79,18 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-3 gap-8">
             <Step
               number="1"
-              title="Search by stack"
-              description="Tell us what technologies you work with — Django, React, TypeScript, whatever. We search GitHub for organizations using those tools."
+              title="Upload your resume"
+              description="Drop in your PDF or DOCX. AI extracts your tech stack, key projects, and experience — no forms to fill out."
             />
             <Step
               number="2"
-              title="Discover prospects"
-              description="We analyze repos for dependency files, AI tool signals (CLAUDE.md, .cursor), Docker, CI/CD, and more. Each org gets a match score."
+              title="See matching jobs"
+              description="We match your skills against thousands of jobs from ATS boards, RemoteOK, Remotive, We Work Remotely, and HN Who's Hiring."
             />
             <Step
               number="3"
-              title="Reach out"
-              description="Find engineering contacts via Hunter.io, upload your resume, and generate personalized outreach messages with AI. Land the interview."
+              title="Apply with context"
+              description="Generate personalized outreach that references the company's specific tech stack and open roles. Stand out from generic applications."
             />
           </div>
         </div>
@@ -67,8 +105,8 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-2 gap-6">
             <DetectCard
               title="Tech Stack"
-              items={['requirements.txt', 'package.json', 'pyproject.toml', 'Pipfile']}
-              description="We parse dependency files to identify frameworks, libraries, and languages."
+              items={['requirements.txt', 'package.json', 'go.mod', 'Cargo.toml', 'Gemfile', 'pom.xml']}
+              description="We parse dependency files across Python, JS, Go, Rust, Ruby, and Java ecosystems."
             />
             <DetectCard
               title="AI Tool Signals"
