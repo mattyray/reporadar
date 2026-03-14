@@ -71,6 +71,113 @@ def detect_from_package_json(contents: str) -> list[tuple[str, str]]:
     return techs
 
 
+def detect_from_go_mod(contents: str) -> list[tuple[str, str]]:
+    """Parse go.mod for require blocks."""
+    techs = []
+    in_require = False
+    for line in contents.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("require ("):
+            in_require = True
+            continue
+        if stripped == ")" and in_require:
+            in_require = False
+            continue
+        if stripped.startswith("require ") and "(" not in stripped:
+            # Single-line require
+            mod = stripped.split()[1] if len(stripped.split()) > 1 else ""
+            detected = _lookup_go_module(mod)
+            if detected:
+                techs.append(detected)
+            continue
+        if in_require:
+            parts = stripped.split()
+            if parts:
+                detected = _lookup_go_module(parts[0])
+                if detected:
+                    techs.append(detected)
+    return techs
+
+
+def _lookup_go_module(mod_path: str) -> tuple[str, str] | None:
+    """Look up a Go module path in the package map."""
+    # Try exact match first, then progressively shorter prefixes
+    if mod_path in GO_MODULE_MAP:
+        return GO_MODULE_MAP[mod_path]
+    # Try matching the first 2-3 segments (e.g. github.com/gin-gonic/gin)
+    parts = mod_path.split("/")
+    for length in range(len(parts), 0, -1):
+        prefix = "/".join(parts[:length])
+        if prefix in GO_MODULE_MAP:
+            return GO_MODULE_MAP[prefix]
+    return None
+
+
+def detect_from_cargo_toml(contents: str) -> list[tuple[str, str]]:
+    """Parse Cargo.toml [dependencies] section."""
+    techs = []
+    in_deps = False
+    for line in contents.splitlines():
+        stripped = line.strip()
+        if stripped == "[dependencies]":
+            in_deps = True
+            continue
+        if stripped.startswith("[") and in_deps:
+            in_deps = False
+            continue
+        if in_deps and "=" in stripped:
+            crate = stripped.split("=")[0].strip().strip('"')
+            detected = RUST_CRATE_MAP.get(crate)
+            if detected:
+                techs.append(detected)
+    return techs
+
+
+def detect_from_gemfile(contents: str) -> list[tuple[str, str]]:
+    """Parse Gemfile for gem declarations."""
+    techs = []
+    for line in contents.splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("gem "):
+            continue
+        match = re.match(r"""gem\s+['"]([a-zA-Z0-9_-]+)['"]""", stripped)
+        if match:
+            gem = match.group(1).lower()
+            detected = RUBY_GEM_MAP.get(gem)
+            if detected:
+                techs.append(detected)
+    return techs
+
+
+def detect_from_pom_xml(contents: str) -> list[tuple[str, str]]:
+    """Parse pom.xml for Maven dependencies (regex, no XML parser needed)."""
+    techs = []
+    # Match <artifactId>...</artifactId> within <dependency> blocks
+    for match in re.finditer(r"<artifactId>([^<]+)</artifactId>", contents):
+        artifact = match.group(1).lower()
+        detected = JAVA_ARTIFACT_MAP.get(artifact)
+        if detected:
+            techs.append(detected)
+    return techs
+
+
+def detect_from_build_gradle(contents: str) -> list[tuple[str, str]]:
+    """Parse build.gradle for dependencies."""
+    techs = []
+    # Match patterns like: implementation 'group:artifact:version'
+    for match in re.finditer(
+        r"""(?:implementation|api|compile|runtimeOnly)\s+['"]([^'"]+)['"]""", contents
+    ):
+        dep = match.group(1)
+        parts = dep.split(":")
+        if len(parts) >= 2:
+            artifact = parts[1].lower()
+            detected = JAVA_ARTIFACT_MAP.get(artifact)
+            if detected:
+                techs.append(detected)
+    return techs
+
+
 def detect_stack(files: dict[str, str]) -> list[tuple[str, str]]:
     """Main entry point: given a dict of {filename: contents}, detect all technologies.
 
@@ -95,6 +202,29 @@ def detect_stack(files: dict[str, str]) -> list[tuple[str, str]]:
     for filename in ["package.json", "frontend/package.json", "client/package.json", "web/package.json"]:
         if filename in files:
             techs.extend(detect_from_package_json(files[filename]))
+
+    # Go detection
+    for filename in ["go.mod", "backend/go.mod", "app/go.mod"]:
+        if filename in files:
+            techs.extend(detect_from_go_mod(files[filename]))
+
+    # Rust detection
+    for filename in ["Cargo.toml", "backend/Cargo.toml"]:
+        if filename in files:
+            techs.extend(detect_from_cargo_toml(files[filename]))
+
+    # Ruby detection
+    for filename in ["Gemfile", "backend/Gemfile"]:
+        if filename in files:
+            techs.extend(detect_from_gemfile(files[filename]))
+
+    # Java detection
+    for filename in ["pom.xml", "backend/pom.xml", "app/pom.xml"]:
+        if filename in files:
+            techs.extend(detect_from_pom_xml(files[filename]))
+    for filename in ["build.gradle", "build.gradle.kts", "app/build.gradle", "app/build.gradle.kts"]:
+        if filename in files:
+            techs.extend(detect_from_build_gradle(files[filename]))
 
     # Deduplicate by technology name
     seen = set()
@@ -470,4 +600,167 @@ JS_PACKAGE_MAP = {
     "@cloudflare/workers-types": ("Cloudflare Workers", "infrastructure"),
     "@vercel/kv": ("Vercel KV", "infrastructure"),
     "@vercel/postgres": ("Vercel Postgres", "infrastructure"),
+}
+
+GO_MODULE_MAP = {
+    # Web frameworks
+    "github.com/gin-gonic/gin": ("Gin", "backend"),
+    "github.com/labstack/echo": ("Echo", "backend"),
+    "github.com/gofiber/fiber": ("Fiber", "backend"),
+    "github.com/gorilla/mux": ("Gorilla Mux", "backend"),
+    "github.com/go-chi/chi": ("Chi", "backend"),
+    "github.com/julienschmidt/httprouter": ("httprouter", "backend"),
+    # gRPC
+    "google.golang.org/grpc": ("gRPC", "backend"),
+    "google.golang.org/protobuf": ("Protocol Buffers", "backend"),
+    # Databases
+    "github.com/lib/pq": ("PostgreSQL", "database"),
+    "github.com/jackc/pgx": ("PostgreSQL", "database"),
+    "github.com/go-sql-driver/mysql": ("MySQL", "database"),
+    "go.mongodb.org/mongo-driver": ("MongoDB", "database"),
+    "github.com/go-redis/redis": ("Redis", "database"),
+    "github.com/redis/go-redis": ("Redis", "database"),
+    "gorm.io/gorm": ("GORM", "database"),
+    "github.com/jmoiron/sqlx": ("sqlx", "database"),
+    "entgo.io/ent": ("Ent ORM", "database"),
+    "github.com/uptrace/bun": ("Bun ORM", "database"),
+    # AI
+    "github.com/sashabaranov/go-openai": ("OpenAI API", "ai_ml"),
+    "github.com/tmc/langchaingo": ("LangChain (Go)", "ai_ml"),
+    # Infrastructure
+    "github.com/aws/aws-sdk-go-v2": ("AWS SDK", "infrastructure"),
+    "github.com/docker/docker": ("Docker", "infrastructure"),
+    "k8s.io/client-go": ("Kubernetes", "infrastructure"),
+    "github.com/nats-io/nats.go": ("NATS", "infrastructure"),
+    "github.com/rabbitmq/amqp091-go": ("RabbitMQ", "infrastructure"),
+    "github.com/prometheus/client_golang": ("Prometheus", "infrastructure"),
+    "go.uber.org/zap": ("Zap Logger", "infrastructure"),
+    "github.com/sirupsen/logrus": ("Logrus", "infrastructure"),
+    "github.com/spf13/cobra": ("Cobra CLI", "infrastructure"),
+    "github.com/spf13/viper": ("Viper Config", "infrastructure"),
+    # Testing
+    "github.com/stretchr/testify": ("Testify", "infrastructure"),
+}
+
+RUST_CRATE_MAP = {
+    # Web frameworks
+    "actix-web": ("Actix Web", "backend"),
+    "axum": ("Axum", "backend"),
+    "rocket": ("Rocket", "backend"),
+    "warp": ("Warp", "backend"),
+    "hyper": ("Hyper", "backend"),
+    # Async runtime
+    "tokio": ("Tokio", "backend"),
+    "async-std": ("async-std", "backend"),
+    # Serialization
+    "serde": ("Serde", "backend"),
+    "serde_json": ("Serde JSON", "backend"),
+    # Databases
+    "diesel": ("Diesel ORM", "database"),
+    "sqlx": ("SQLx", "database"),
+    "sea-orm": ("SeaORM", "database"),
+    "rusqlite": ("SQLite", "database"),
+    "redis": ("Redis", "database"),
+    "mongodb": ("MongoDB", "database"),
+    # AI
+    "async-openai": ("OpenAI API", "ai_ml"),
+    # Infrastructure
+    "aws-sdk-s3": ("AWS SDK", "infrastructure"),
+    "tracing": ("Tracing", "infrastructure"),
+    "clap": ("Clap CLI", "infrastructure"),
+    "tonic": ("gRPC (Tonic)", "backend"),
+    "prost": ("Protocol Buffers", "backend"),
+    # WebAssembly
+    "wasm-bindgen": ("WebAssembly", "frontend"),
+    "yew": ("Yew", "frontend"),
+    "leptos": ("Leptos", "frontend"),
+    "tauri": ("Tauri", "frontend"),
+}
+
+RUBY_GEM_MAP = {
+    # Web frameworks
+    "rails": ("Ruby on Rails", "backend"),
+    "sinatra": ("Sinatra", "backend"),
+    "hanami": ("Hanami", "backend"),
+    "grape": ("Grape API", "backend"),
+    # Rails ecosystem
+    "devise": ("Devise", "backend"),
+    "pundit": ("Pundit", "backend"),
+    "sidekiq": ("Sidekiq", "backend"),
+    "resque": ("Resque", "backend"),
+    "delayed_job": ("Delayed Job", "backend"),
+    "activeadmin": ("ActiveAdmin", "backend"),
+    # API
+    "graphql-ruby": ("GraphQL", "backend"),
+    "jbuilder": ("Jbuilder", "backend"),
+    # Databases
+    "pg": ("PostgreSQL", "database"),
+    "mysql2": ("MySQL", "database"),
+    "mongoid": ("MongoDB", "database"),
+    "redis": ("Redis", "database"),
+    "sequel": ("Sequel", "database"),
+    "elasticsearch-model": ("Elasticsearch", "database"),
+    # AI
+    "ruby-openai": ("OpenAI API", "ai_ml"),
+    "langchainrb": ("LangChain (Ruby)", "ai_ml"),
+    # Infrastructure
+    "puma": ("Puma", "infrastructure"),
+    "unicorn": ("Unicorn", "infrastructure"),
+    "aws-sdk-s3": ("AWS SDK", "infrastructure"),
+    "sentry-ruby": ("Sentry", "infrastructure"),
+    "newrelic_rpm": ("New Relic", "infrastructure"),
+    # Payments
+    "stripe": ("Stripe", "backend"),
+    # Testing
+    "rspec": ("RSpec", "infrastructure"),
+    "capybara": ("Capybara", "infrastructure"),
+    "factory_bot": ("FactoryBot", "infrastructure"),
+    "faker": ("Faker", "infrastructure"),
+}
+
+JAVA_ARTIFACT_MAP = {
+    # Spring ecosystem
+    "spring-boot-starter-web": ("Spring Boot", "backend"),
+    "spring-boot-starter": ("Spring Boot", "backend"),
+    "spring-boot-starter-data-jpa": ("Spring Data JPA", "database"),
+    "spring-boot-starter-security": ("Spring Security", "backend"),
+    "spring-boot-starter-webflux": ("Spring WebFlux", "backend"),
+    "spring-cloud-starter": ("Spring Cloud", "backend"),
+    # Web
+    "jersey-server": ("Jersey", "backend"),
+    "dropwizard-core": ("Dropwizard", "backend"),
+    "micronaut-http-server": ("Micronaut", "backend"),
+    "quarkus-core": ("Quarkus", "backend"),
+    "vert.x-core": ("Vert.x", "backend"),
+    "vertx-core": ("Vert.x", "backend"),
+    # Databases
+    "postgresql": ("PostgreSQL", "database"),
+    "mysql-connector-java": ("MySQL", "database"),
+    "mysql-connector-j": ("MySQL", "database"),
+    "mongodb-driver-sync": ("MongoDB", "database"),
+    "jedis": ("Redis", "database"),
+    "lettuce-core": ("Redis", "database"),
+    "hibernate-core": ("Hibernate", "database"),
+    "mybatis": ("MyBatis", "database"),
+    "flyway-core": ("Flyway", "database"),
+    "liquibase-core": ("Liquibase", "database"),
+    "elasticsearch-rest-high-level-client": ("Elasticsearch", "database"),
+    # Messaging
+    "kafka-clients": ("Apache Kafka", "infrastructure"),
+    "spring-kafka": ("Apache Kafka", "infrastructure"),
+    "amqp-client": ("RabbitMQ", "infrastructure"),
+    # AI
+    "langchain4j": ("LangChain (Java)", "ai_ml"),
+    # gRPC
+    "grpc-netty": ("gRPC", "backend"),
+    "protobuf-java": ("Protocol Buffers", "backend"),
+    # Testing
+    "junit-jupiter": ("JUnit 5", "infrastructure"),
+    "mockito-core": ("Mockito", "infrastructure"),
+    # Infrastructure
+    "aws-java-sdk-s3": ("AWS SDK", "infrastructure"),
+    "sentry": ("Sentry", "infrastructure"),
+    "logback-classic": ("Logback", "infrastructure"),
+    "slf4j-api": ("SLF4J", "infrastructure"),
+    "micrometer-core": ("Micrometer", "infrastructure"),
 }

@@ -328,8 +328,25 @@ def _process_repo(client, owner_data, repo_data):
     )
 
     # Detect stack from dependency files
+    DEP_FILES = [
+        # Python
+        "requirements.txt", "pyproject.toml",
+        # JavaScript
+        "package.json", "frontend/package.json", "client/package.json",
+        # Go
+        "go.mod", "backend/go.mod",
+        # Rust
+        "Cargo.toml",
+        # Ruby
+        "Gemfile",
+        # Java
+        "pom.xml", "build.gradle", "build.gradle.kts",
+        # Subdirectories
+        "backend/requirements.txt", "backend/pyproject.toml",
+        "app/pom.xml", "app/build.gradle",
+    ]
     files = {}
-    for dep_file in ["requirements.txt", "pyproject.toml", "package.json"]:
+    for dep_file in DEP_FILES:
         contents = client.get_file_contents(owner_login, repo_name, dep_file)
         if contents:
             files[dep_file] = contents
