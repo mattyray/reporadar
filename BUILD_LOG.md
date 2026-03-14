@@ -373,11 +373,77 @@ No cookies, no consent banners, no third-party scripts. Session identity is ephe
 
 ---
 
-## Phase 3: Contact Enrichment — [dates TBD]
+## Phase 3: Multi-Source Job Aggregation — March 2026
 
----
+### 2026-03-14 — From 52 ATS Slugs to 6,500+
 
-## Phase 4: Resume + AI Outreach — [dates TBD]
+The original ATS integration only had slugs for companies discovered through GitHub search — about 52 mappings. But GitHub search only finds companies with public repos. What about all the companies hiring for Django that don't have anything on GitHub?
+
+Found an open-source repo (Feashliaa/job-board-aggregator) with 6,261 verified ATS slugs: 4,516 Greenhouse, 947 Lever, 798 Ashby. Built `seed_from_aggregator` management command that downloads all three JSON files and creates ATSMapping records. Runs on every deploy via `start.sh`.
+
+The batch fetcher processes 50 mappings at a time with 2-second stagger between each, then recursively schedules the next batch. At ~25 companies/minute, it takes about 4 hours to churn through the full 6,500. But after the first run, daily refreshes only re-fetch mappings that haven't been checked in 24 hours.
+
+Result: went from 4,018 ATS jobs to 7,000+ in the first batch, with thousands more coming as the fetcher works through the backlog.
+
+**Content angle:** "How I 100x'd my job database with one open-source repo"
+
+### 2026-03-14 — Four External Job Boards in One Afternoon
+
+Added RemoteOK, Remotive, We Work Remotely, and HN Who's Hiring as job sources. Each has a different API/format:
+
+- **RemoteOK**: JSON API at `/api`. Hit a 403 — they block non-browser User-Agents. Fixed with `Mozilla/5.0 (compatible; RepoRadar/1.0)` header.
+- **Remotive**: Clean JSON API at `/api/remote-jobs?category=software-dev`. Returns 23 software jobs. Smallest source but high quality.
+- **WWR**: RSS feeds (no JSON API). Used `feedparser` library. Company name is embedded in the title as "Company: Job Title" — parsed with string splitting.
+- **HN Who's Hiring**: Hit the Algolia HN API for the monthly thread. Regex parser handles the pipe-delimited format (`Company | Role | Location | Salary`). 427 jobs from the latest thread.
+
+Unified storage: all jobs go into the same `JobListing` table with a `source` field. Conditional unique constraints prevent duplicates: ATS jobs unique on `(ats_mapping, external_id)`, external jobs unique on `(source, external_id)`. Stale job cleanup marks jobs as inactive if they disappear from the next fetch.
+
+Celery Beat schedules: RemoteOK/Remotive daily at 7am, WWR every 6 hours, HN on the 1st of each month, ATS refresh daily at 6am.
+
+Frontend tabs let users filter by source. Attribution links required by RemoteOK and Remotive ("via RemoteOK" links back to their site).
+
+**Content angle:** "Four job APIs, four different formats, one unified table"
+
+### 2026-03-14 — Resume-to-Job Matching: "Upload Resume, See Matching Jobs"
+
+Built the full flow: user uploads resume → Claude parses tech stack → system matches against all active jobs → dashboard shows "Jobs For You."
+
+The matching algorithm is simple: for each job, count how many of the user's resume techs appear in the job's `detected_techs`. Score = overlap count. Top 200 matches stored in `ResumeJobMatch` table. Daily refresh via Celery Beat re-matches all users.
+
+The tricky part was tech name normalization. Claude parses "Claude API" from the resume, but jobs detect "Claude". "OpenAI SDK" vs "OpenAI". "Django REST Framework" vs "Django". Fixed with a three-layer approach:
+1. **Parse time**: normalize resume techs through `TECH_KEYWORDS` map with word-boundary regex matching
+2. **Search time**: backend fuzzy-matches search terms against keyword map
+3. **Display time**: frontend highlights chips using word-boundary comparison
+
+The word-boundary part was critical — naive substring matching caused "django" to match "go" (because "go" is inside "djan**go**"). Switched to `\bgo\b` regex matching.
+
+**Content angle:** "The substring matching bug that highlighted every technology on the page"
+
+### 2026-03-14 — Sentry Integration: Two Projects, One Wrong DSN
+
+Set up Sentry error monitoring for both backend (Django + Celery) and frontend (React). Django: `sentry-sdk[django,celery]` with `sentry_sdk.init()` in production.py. React: `@sentry/react` initialized in main.tsx. Both read DSN from env vars.
+
+The smoke test caught a bug: hit `/sentry-debug/` (deliberate ZeroDivisionError), got a 500 on the page, but no error in Sentry. Turns out the DSN provided during Sentry project creation was for a *different* project than the one I was checking. The setup wizard showed one DSN, the project settings showed another. Classic setup mismatch — verified the correct DSN from Project Settings → Client Keys and updated Railway.
+
+Frontend Sentry confirmed working via `throw new Error("smoke test")` in Chrome DevTools (using Chrome MCP automation).
+
+Also discovered: Google OAuth blocks sign-in from Chrome instances running under automation ("Chrome is being controlled by automated test software"). Can't smoke test the full auth flow via MCP — have to test manually or hit API endpoints directly.
+
+**Content angle:** "My error monitoring wasn't monitoring errors — the one-DSN mistake"
+
+### 2026-03-14 — Outreach Improvements: Job Context + Async + Subject Lines
+
+Three outreach upgrades shipped in the same session:
+
+1. **Job context in prompts**: When generating an outreach message for a company, the Claude prompt now includes their open job listings. Instead of generic "I see you use Django," the message can say "I noticed you're hiring a Senior Backend Engineer — here's why I'd be a fit."
+
+2. **Async generation**: Moved from synchronous API call to Celery task. Frontend shows "Generating..." state while the task runs. No more 30-second HTTP timeouts on long Claude responses.
+
+3. **Email subject lines**: Claude now returns a `subject` field in addition to the message body. Frontend displays it separately. Outreach messages stored with subject for future reference.
+
+**Content angle:** "Making AI outreach actually personal — why context beats templates"
+
+## Phase 4: Contact Enrichment — [dates TBD]
 
 ---
 
