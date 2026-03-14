@@ -23,6 +23,9 @@ celery[redis]>=5.4,<6.0
 # HTTP client (for GitHub, Hunter, Apollo API calls)
 requests>=2.32,<3.0
 
+# Job board parsing
+feedparser>=6.0,<7.0
+
 # AI
 anthropic>=0.40,<1.0
 

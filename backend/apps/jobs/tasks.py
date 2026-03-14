@@ -104,8 +104,12 @@ def refresh_all_jobs():
 
 
 @shared_task
-def fetch_unfetched_mappings():
-    """Fetch jobs for any ATS mappings that have never been checked (e.g. from seed)."""
+def fetch_unfetched_mappings(batch_size=50):
+    """Fetch jobs for ATS mappings that have never been checked.
+
+    Queues in batches to avoid hammering ATS APIs. Each batch of refresh_jobs
+    tasks runs with a countdown stagger so they don't all fire at once.
+    """
     mapping_ids = list(
         ATSMapping.objects.filter(last_checked_at__isnull=True).values_list("id", flat=True)
     )
@@ -113,9 +117,118 @@ def fetch_unfetched_mappings():
         return
 
     logger.info("fetch_unfetched_mappings: found %d mappings to fetch", len(mapping_ids))
-    for mapping_id in mapping_ids:
-        refresh_jobs.delay(mapping_id)
+    for i, mapping_id in enumerate(mapping_ids[:batch_size]):
+        # Stagger tasks: 2 seconds apart to respect rate limits
+        refresh_jobs.apply_async(args=[mapping_id], countdown=i * 2)
 
+    # If there are more, schedule the next batch in 5 minutes
+    remaining = len(mapping_ids) - batch_size
+    if remaining > 0:
+        logger.info("fetch_unfetched_mappings: %d remaining, scheduling next batch", remaining)
+        fetch_unfetched_mappings.apply_async(
+            kwargs={"batch_size": batch_size}, countdown=300
+        )
+
+
+
+# ---------------------------------------------------------------------------
+# External job board tasks
+# ---------------------------------------------------------------------------
+
+
+@shared_task
+def fetch_remoteok_jobs():
+    """Fetch and store jobs from RemoteOK."""
+    from providers.job_boards import fetch_remoteok_jobs as _fetch
+
+    jobs = _fetch()
+    _store_external_jobs(jobs)
+
+
+@shared_task
+def fetch_remotive_jobs():
+    """Fetch and store jobs from Remotive."""
+    from providers.job_boards import fetch_remotive_jobs as _fetch
+
+    jobs = _fetch()
+    _store_external_jobs(jobs)
+
+
+@shared_task
+def fetch_wwr_jobs():
+    """Fetch and store jobs from We Work Remotely."""
+    from providers.job_boards import fetch_wwr_jobs as _fetch
+
+    jobs = _fetch()
+    _store_external_jobs(jobs)
+
+
+@shared_task
+def fetch_hn_hiring(thread_id=None):
+    """Fetch and store jobs from HN Who's Hiring thread."""
+    from providers.job_boards import fetch_hn_hiring_jobs as _fetch
+
+    jobs = _fetch(thread_id=thread_id)
+    _store_external_jobs(jobs)
+
+
+def _store_external_jobs(jobs):
+    """Store a list of ExternalJobPost objects into the JobListing table."""
+    if not jobs:
+        return
+
+    source = jobs[0].source
+    seen_ids = set()
+
+    for job in jobs:
+        techs = extract_techs_from_text(job.description_text)
+        # Also include tags if available (RemoteOK provides these)
+        if hasattr(job, "tags") and job.tags:
+            from .tech_extraction import TECH_KEYWORDS
+
+            for tag in job.tags:
+                canonical = TECH_KEYWORDS.get(tag.lower())
+                if canonical and canonical not in techs:
+                    techs.append(canonical)
+
+        posted_at = None
+        if job.posted_at:
+            from django.utils.dateparse import parse_datetime
+
+            posted_at = parse_datetime(str(job.posted_at))
+
+        JobListing.objects.update_or_create(
+            source=job.source,
+            external_id=job.external_id,
+            defaults={
+                "ats_mapping": None,
+                "company_name": job.company_name[:200],
+                "title": job.title[:500],
+                "department": job.department[:200],
+                "location": job.location[:300],
+                "employment_type": job.employment_type[:50],
+                "salary": job.salary[:200],
+                "description_text": job.description_text,
+                "apply_url": job.apply_url[:500] if job.apply_url else "",
+                "source_url": job.source_url[:500] if job.source_url else "",
+                "detected_techs": techs,
+                "is_active": True,
+                "posted_at": posted_at,
+            },
+        )
+        seen_ids.add(job.external_id)
+
+    # Mark jobs from this source that we didn't see as inactive
+    if seen_ids:
+        stale = JobListing.objects.filter(
+            source=source, is_active=True
+        ).exclude(external_id__in=seen_ids)
+        stale_count = stale.count()
+        if stale_count:
+            stale.update(is_active=False)
+            logger.info("Marked %d stale %s jobs as inactive", stale_count, source)
+
+    logger.info("Stored %d %s jobs", len(seen_ids), source)
 
 
 def _refresh_mapping_jobs(client, mapping: ATSMapping):
@@ -139,6 +252,8 @@ def _refresh_mapping_jobs(client, mapping: ATSMapping):
             ats_mapping=mapping,
             external_id=job_post.external_id,
             defaults={
+                "source": "ats",
+                "company_name": mapping.company_name,
                 "title": job_post.title[:500],
                 "department": job_post.department[:200],
                 "location": job_post.location[:300],
