@@ -13,7 +13,7 @@ if SENTRY_DSN:
         dsn=SENTRY_DSN,
         traces_sample_rate=0.1,
         profiles_sample_rate=0.1,
-        send_default_pii=False,
+        send_default_pii=True,
         environment="production",
     )
 

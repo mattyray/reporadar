@@ -247,8 +247,11 @@ def _store_external_jobs(jobs):
         posted_at = None
         if job.posted_at:
             from django.utils.dateparse import parse_datetime
+            from django.utils import timezone as tz
 
             posted_at = parse_datetime(str(job.posted_at))
+            if posted_at and posted_at.tzinfo is None:
+                posted_at = tz.make_aware(posted_at)
 
         JobListing.objects.update_or_create(
             source=job.source,
@@ -299,7 +302,11 @@ def _refresh_mapping_jobs(client, mapping: ATSMapping):
         posted_at = None
         if job_post.posted_at:
             from django.utils.dateparse import parse_datetime
+            from django.utils import timezone as tz
+
             posted_at = parse_datetime(job_post.posted_at)
+            if posted_at and posted_at.tzinfo is None:
+                posted_at = tz.make_aware(posted_at)
 
         JobListing.objects.update_or_create(
             ats_mapping=mapping,
@@ -307,12 +314,12 @@ def _refresh_mapping_jobs(client, mapping: ATSMapping):
             defaults={
                 "source": "ats",
                 "company_name": mapping.company_name,
-                "title": job_post.title[:500],
-                "department": job_post.department[:200],
-                "location": job_post.location[:300],
-                "employment_type": job_post.employment_type[:50],
-                "description_text": job_post.description_text,
-                "apply_url": job_post.apply_url[:500],
+                "title": (job_post.title or "")[:500],
+                "department": (job_post.department or "")[:200],
+                "location": (job_post.location or "")[:300],
+                "employment_type": (job_post.employment_type or "")[:50],
+                "description_text": job_post.description_text or "",
+                "apply_url": (job_post.apply_url or "")[:500],
                 "detected_techs": techs,
                 "is_active": True,
                 "posted_at": posted_at,
