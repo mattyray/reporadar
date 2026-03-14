@@ -48,11 +48,7 @@ def probe_org_ats(org_id: int):
         found_platforms.add(platform)
 
     # Strategy 1: Try slug variants (github_login, name variants)
-    slugs_to_try = [slug]
-    if org.name and org.name.lower().replace(" ", "") != slug:
-        slugs_to_try.append(org.name.lower().replace(" ", ""))
-    if org.name and org.name.lower().replace(" ", "-") != slug:
-        slugs_to_try.append(org.name.lower().replace(" ", "-"))
+    slugs_to_try = _generate_slug_candidates(slug, org.name)
 
     for try_slug in slugs_to_try:
         results = client.probe_company(try_slug)
@@ -74,6 +70,63 @@ def probe_org_ats(org_id: int):
         "probe_org_ats completed for org %s (%s): found %s",
         org_id, org.github_login, list(found_platforms) or "none",
     )
+
+
+CORPORATE_SUFFIXES = {
+    "inc", "llc", "ltd", "corp", "corporation", "co", "company",
+    "group", "holdings", "enterprises", "solutions", "technologies",
+    "international",
+}
+
+
+def _generate_slug_candidates(github_login: str, org_name: str | None) -> list[str]:
+    """Generate slug candidates for ATS board discovery.
+
+    Tries multiple variations to maximize the chance of finding a match:
+    - github_login as-is
+    - org name: no spaces, with dashes
+    - org name: stripped of corporate suffixes (Inc, LLC, etc.)
+    - first word only
+    """
+    import re
+
+    candidates = [github_login]
+    seen = {github_login}
+
+    def _add(slug: str):
+        s = slug.strip().lower()
+        # Only valid slug chars
+        s = re.sub(r"[^a-z0-9-]", "", s)
+        s = re.sub(r"-+", "-", s).strip("-")
+        if s and s not in seen and len(s) >= 2:
+            seen.add(s)
+            candidates.append(s)
+
+    if not org_name:
+        return candidates
+
+    name = org_name.strip()
+
+    # Basic variants
+    _add(name.replace(" ", ""))
+    _add(name.replace(" ", "-"))
+
+    # Strip corporate suffixes
+    words = name.split()
+    stripped = [w for w in words if w.lower().rstrip(".,") not in CORPORATE_SUFFIXES]
+    if stripped and len(stripped) < len(words):
+        _add("".join(stripped))
+        _add("-".join(stripped))
+
+    # First word only (e.g., "Stripe" from "Stripe Inc")
+    if words:
+        _add(words[0])
+
+    # First two words (e.g., "palo-alto" from "Palo Alto Networks")
+    if len(words) >= 2:
+        _add(f"{words[0]}-{words[1]}")
+
+    return candidates
 
 
 @shared_task

@@ -252,3 +252,54 @@ class TestJobSearchSourceFilter:
         assert job["source_url"] == "https://remotive.com/jobs/123"
         assert job["salary"] == "$120k - $150k"
         assert job["company_name"] == "Remotive Co"
+
+
+class TestSlugCandidateGeneration:
+    """Test ATS slug candidate generation logic."""
+
+    def test_basic_github_login(self):
+        from apps.jobs.tasks import _generate_slug_candidates
+        candidates = _generate_slug_candidates("acme", None)
+        assert candidates == ["acme"]
+
+    def test_name_variants(self):
+        from apps.jobs.tasks import _generate_slug_candidates
+        candidates = _generate_slug_candidates("acme-corp", "Acme Corp")
+        assert "acme-corp" in candidates
+        assert "acmecorp" in candidates
+        assert "acme" in candidates  # first word
+
+    def test_strips_corporate_suffixes(self):
+        from apps.jobs.tasks import _generate_slug_candidates
+        candidates = _generate_slug_candidates("stripe", "Stripe Inc")
+        assert "stripe" in candidates
+        # "stripeinc" should be there as basic variant
+        assert "stripeinc" in candidates
+        # Should also have suffix-stripped variant (just "stripe")
+        assert candidates.count("stripe") == 1  # no duplicates
+
+    def test_strips_llc(self):
+        from apps.jobs.tasks import _generate_slug_candidates
+        candidates = _generate_slug_candidates("cool-tech", "Cool Tech LLC")
+        assert "cooltech" in candidates
+        assert "cool-tech" in candidates
+        assert "cool" in candidates  # first word
+
+    def test_multi_word_company(self):
+        from apps.jobs.tasks import _generate_slug_candidates
+        candidates = _generate_slug_candidates("palo-alto", "Palo Alto Networks Inc")
+        assert "palo-alto" in candidates
+        assert "paloaltonetworks" in candidates  # no spaces, no suffix
+        assert "paloaltonetworksinc" in candidates  # all words
+        assert "palo-alto-networks" in candidates  # stripped suffix hyphenated
+
+    def test_no_duplicates(self):
+        from apps.jobs.tasks import _generate_slug_candidates
+        candidates = _generate_slug_candidates("stripe", "Stripe")
+        assert len(candidates) == len(set(candidates))
+
+    def test_filters_short_slugs(self):
+        from apps.jobs.tasks import _generate_slug_candidates
+        candidates = _generate_slug_candidates("ab", "A B Corp")
+        # "a" and "b" are too short (< 2 chars), should be filtered
+        assert all(len(c) >= 2 for c in candidates)
