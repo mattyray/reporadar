@@ -70,6 +70,7 @@ export default function OutreachPage() {
   const initialOrgId = searchParams.get('orgId') || '';
 
   const [orgId, setOrgId] = useState(initialOrgId);
+  const [contactId, setContactId] = useState('');
   const [messageType, setMessageType] = useState('email');
   const [generatedMessage, setGeneratedMessage] = useState<OutreachMessage | null>(null);
   const [pollingId, setPollingId] = useState<string | null>(null);
@@ -77,6 +78,12 @@ export default function OutreachPage() {
   const { data: prospects } = useQuery({
     queryKey: ['prospects'],
     queryFn: api.getProspects,
+  });
+
+  const { data: contacts } = useQuery({
+    queryKey: ['contacts', orgId],
+    queryFn: () => api.getContacts(Number(orgId)),
+    enabled: !!orgId,
   });
 
   const { data: history } = useQuery({
@@ -105,7 +112,7 @@ export default function OutreachPage() {
   }, [polledMessage, queryClient]);
 
   const generate = useMutation({
-    mutationFn: () => api.generateOutreach(Number(orgId), messageType),
+    mutationFn: () => api.generateOutreach(Number(orgId), messageType, contactId ? Number(contactId) : undefined),
     onSuccess: (data) => {
       if (data.status === 'generating') {
         setPollingId(data.id);
@@ -134,13 +141,13 @@ export default function OutreachPage() {
 
       <div className="bg-white rounded-lg shadow p-6 space-y-4">
         <h3 className="text-lg font-medium text-gray-900">Generate Message</h3>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Organization</label>
             {orgs.length > 0 ? (
               <select
                 value={orgId}
-                onChange={(e) => setOrgId(e.target.value)}
+                onChange={(e) => { setOrgId(e.target.value); setContactId(''); }}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
               >
                 <option value="">Select an organization...</option>
@@ -155,7 +162,7 @@ export default function OutreachPage() {
                 <input
                   type="number"
                   value={orgId}
-                  onChange={(e) => setOrgId(e.target.value)}
+                  onChange={(e) => { setOrgId(e.target.value); setContactId(''); }}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
                   placeholder="Organization ID"
                 />
@@ -163,6 +170,25 @@ export default function OutreachPage() {
                   Run a search first to discover organizations.
                 </p>
               </div>
+            )}
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Recipient</label>
+            <select
+              value={contactId}
+              onChange={(e) => setContactId(e.target.value)}
+              disabled={!orgId}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm disabled:opacity-50"
+            >
+              <option value="">Hiring Manager (default)</option>
+              {(contacts ?? []).map((c: any) => (
+                <option key={c.id} value={c.id}>
+                  {c.first_name} {c.last_name}{c.position ? ` — ${c.position}` : ''}
+                </option>
+              ))}
+            </select>
+            {orgId && contacts && contacts.length === 0 && (
+              <p className="text-xs text-gray-400 mt-1">No contacts enriched yet.</p>
             )}
           </div>
           <div>
