@@ -34,9 +34,7 @@ INSTALLED_APPS = [
     "apps.accounts",
     "apps.prospects",
     "apps.search",
-    "apps.enrichment",
     "apps.resumes",
-    "apps.outreach",
     "apps.jobs",
     "apps.analytics",
 ]

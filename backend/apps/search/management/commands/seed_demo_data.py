@@ -5,7 +5,6 @@ from datetime import timedelta
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
-from apps.enrichment.models import OrganizationContact
 from apps.prospects.models import (
     Organization,
     OrganizationRepo,
@@ -239,24 +238,6 @@ class Command(BaseCommand):
                         },
                     )
 
-            for contact in org_data.get("contacts", []):
-                OrganizationContact.objects.update_or_create(
-                    organization=org,
-                    email=contact["email"],
-                    defaults={
-                        "provider": "hunter",
-                        "first_name": contact["first_name"],
-                        "last_name": contact["last_name"],
-                        "email_confidence": contact["confidence"],
-                        "position": contact["position"],
-                        "department": contact["department"],
-                        "seniority": contact["seniority"],
-                        "is_engineering_lead": contact["is_lead"],
-                        "source_domain": org_data["website"].replace("https://", ""),
-                        "last_enriched_at": now,
-                    },
-                )
-
         self.stdout.write(self.style.SUCCESS(
-            f"Seeded {len(ORGS)} organizations ({created_orgs} new) with repos, contributors, and contacts."
+            f"Seeded {len(ORGS)} organizations ({created_orgs} new) with repos and contributors."
         ))

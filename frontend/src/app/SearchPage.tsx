@@ -1,12 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
-import type { SearchConfig, SearchQuery, SearchResult, ResumeProfile, CompanyLookupResult } from '../types/api';
+import type { SearchConfig, SearchQuery, SearchResult, CompanyLookupResult } from '../types/api';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import TechChipSelector from '../components/TechChipSelector';
 import TechChip from '../components/TechChip';
-import ResumeUploadBanner from '../components/ResumeUploadBanner';
 import SetupChecklist from '../components/SetupChecklist';
 
 function formatTimeAgo(dateStr: string): string {
@@ -315,22 +314,6 @@ export default function SearchPage() {
   const [minContributors, setMinContributors] = useState(2);
   const [maxResults, setMaxResults] = useState(50);
 
-  // Load resume profile to auto-populate chips
-  const { data: resumeProfile } = useQuery({
-    queryKey: ['resumeProfile'],
-    queryFn: api.getResumeProfile,
-    retry: false,
-  });
-
-  // Auto-populate chips from resume on first load
-  const [resumeApplied, setResumeApplied] = useState(false);
-  useEffect(() => {
-    if (resumeProfile && (resumeProfile as ResumeProfile).tech_stack?.length && !resumeApplied && selectedTechs.length === 0) {
-      setSelectedTechs((resumeProfile as ResumeProfile).tech_stack.map((t: string) => t.toLowerCase()));
-      setResumeApplied(true);
-    }
-  }, [resumeProfile, resumeApplied, selectedTechs.length]);
-
   const { data: history } = useQuery({
     queryKey: ['searchHistory'],
     queryFn: api.getSearchHistory,
@@ -376,98 +359,19 @@ export default function SearchPage() {
     createSearch.mutate(config);
   };
 
-  const handleResumeParsed = (techStack: string[]) => {
-    setSelectedTechs(techStack);
-    setResumeApplied(true);
-  };
-
-  // Matched jobs from resume
-  const { data: matchedJobsData } = useQuery({
-    queryKey: ['matchedJobs'],
-    queryFn: api.getMatchedJobs,
-    enabled: !!(resumeProfile && (resumeProfile as ResumeProfile).parsed_at),
-    retry: false,
-  });
-  const matchedJobs = matchedJobsData?.results ?? [];
-
   const recentProspects = prospects?.results?.slice(0, 6) ?? [];
-  const hasResume = !!(resumeProfile && (resumeProfile as ResumeProfile).parsed_at);
 
   return (
     <div className="space-y-6">
       {/* Page header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">
-          {user?.first_name ? `Welcome, ${user.first_name}` : 'Dashboard'}
-        </h1>
+        <h1 className="text-2xl font-bold text-gray-900">Companies</h1>
         <p className="text-gray-500 mt-1">
-          Pick your tech stack and we'll find companies building with the same tools.
+          Search GitHub organizations by tech stack to find companies building with the same tools.
         </p>
       </div>
 
       <SetupChecklist />
-
-      {/* Jobs For You — shown when resume is uploaded and matches exist */}
-      {hasResume && matchedJobs.length > 0 && (
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">Jobs For You</h2>
-              <p className="text-sm text-gray-500 mt-0.5">
-                Based on your resume: {(resumeProfile as ResumeProfile).tech_stack?.slice(0, 5).join(', ')}
-                {((resumeProfile as ResumeProfile).tech_stack?.length ?? 0) > 5 && ' +more'}
-              </p>
-            </div>
-            <button
-              onClick={() => {
-                const techs = (resumeProfile as ResumeProfile).tech_stack?.map((t: string) => t.toLowerCase()) ?? [];
-                navigate(`/jobs?techs=${techs.join(',')}`);
-              }}
-              className="text-sm text-indigo-600 hover:underline cursor-pointer"
-            >
-              View all matches
-            </button>
-          </div>
-          <div className="space-y-3">
-            {matchedJobs.slice(0, 8).map((job: any) => (
-              <div key={job.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-                <div className="min-w-0 flex-1">
-                  <a
-                    href={job.apply_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="font-medium text-sm text-gray-900 hover:text-indigo-600"
-                  >
-                    {job.title}
-                  </a>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-xs text-gray-500">{job.company_name}</span>
-                    {job.location && <span className="text-xs text-gray-400">{job.location}</span>}
-                    {job.salary && <span className="text-xs text-green-600">{job.salary}</span>}
-                  </div>
-                  {job.matched_techs?.length > 0 && (
-                    <div className="flex gap-1 mt-1">
-                      {job.matched_techs.map((tech: string) => (
-                        <span key={tech} className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs">
-                          {tech}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <a
-                  href={job.apply_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex-shrink-0 text-sm text-indigo-600 hover:text-indigo-800 font-medium ml-4"
-                >
-                  Apply
-                </a>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Company lookup — search by name */}
       {user?.github_connected && (
@@ -475,17 +379,6 @@ export default function SearchPage() {
           <h2 className="text-sm font-semibold text-gray-900 mb-1">Look up a specific company</h2>
           <p className="text-xs text-gray-500 mb-3">Type a company or GitHub org name to scan their repos and tech stack.</p>
           <CompanySearch />
-        </div>
-      )}
-
-      {/* Resume upload — show for new users and existing users who want to re-upload */}
-      <ResumeUploadBanner onParsed={handleResumeParsed} hasExisting={hasResume} />
-
-      {/* Resume applied indicator */}
-      {hasResume && selectedTechs.length > 0 && (
-        <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-2.5">
-          <span className="font-medium">Auto-detected from your resume.</span>
-          <span className="text-green-600">Remove or add technologies below, then hit search.</span>
         </div>
       )}
 
@@ -608,7 +501,7 @@ export default function SearchPage() {
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-gray-900">Recent Discoveries</h3>
             <button
-              onClick={() => navigate('/prospects')}
+              onClick={() => navigate('/companies')}
               className="text-xs text-indigo-600 hover:underline cursor-pointer"
             >
               View all

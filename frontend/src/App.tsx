@@ -6,10 +6,8 @@ import LandingPage from './app/LandingPage';
 import LoginPage from './app/LoginPage';
 import AuthCallbackPage from './app/AuthCallbackPage';
 import SearchPage from './app/SearchPage';
-import ProspectsPage from './app/ProspectsPage';
 import ProspectDetailPage from './app/ProspectDetailPage';
 import SettingsPage from './app/SettingsPage';
-import OutreachPage from './app/OutreachPage';
 import JobsPage from './app/JobsPage';
 
 function NotFoundPage() {
@@ -47,12 +45,10 @@ export default function App() {
           </ProtectedRoute>
         }
       >
-        <Route path="dashboard" element={<SearchPage />} />
-        <Route path="prospects" element={<ProspectsPage />} />
+        <Route path="dashboard" element={<JobsPage />} />
+        <Route path="companies" element={<SearchPage />} />
         <Route path="prospects/:id" element={<ProspectDetailPage />} />
-        <Route path="jobs" element={<JobsPage />} />
         <Route path="settings" element={<SettingsPage />} />
-        <Route path="outreach" element={<OutreachPage />} />
       </Route>
       <Route path="*" element={<NotFoundPage />} />
     </Routes>

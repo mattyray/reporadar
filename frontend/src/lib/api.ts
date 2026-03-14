@@ -32,16 +32,6 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 export const api = {
   // Accounts
   getProfile: () => request<import('../types/api').UserProfile>('/accounts/me/'),
-  getApiKeys: () => request<any[]>('/accounts/api-keys/'),
-  addApiKey: (provider: string, apiKey: string) =>
-    request('/accounts/api-keys/', {
-      method: 'POST',
-      body: JSON.stringify({ provider, api_key: apiKey }),
-    }),
-  deleteApiKey: (provider: string) =>
-    request(`/accounts/api-keys/${provider}/`, { method: 'DELETE' }),
-  getApiKeyStatus: () => request('/accounts/api-keys/status/'),
-
   // Search
   createSearch: (config: import('../types/api').SearchConfig) =>
     request<import('../types/api').SearchQuery>('/search/', {
@@ -83,12 +73,6 @@ export const api = {
   getRepoAnalysis: (repoId: number) =>
     request<import('../types/api').Repo>(`/prospects/repos/${repoId}/analyze/`),
 
-  // Enrichment
-  enrichOrg: (orgId: number) =>
-    request(`/enrichment/${orgId}/enrich/`, { method: 'POST' }),
-  getContacts: (orgId: number) =>
-    request<import('../types/api').Contact[]>(`/enrichment/${orgId}/contacts/`),
-
   // Resumes
   uploadResume: (file: File) => {
     const formData = new FormData();
@@ -97,21 +81,6 @@ export const api = {
   },
   getResumeProfile: () => request<import('../types/api').ResumeProfile>('/resumes/profile/'),
   deleteResume: () => request('/resumes/profile/', { method: 'DELETE' }),
-
-  // Outreach
-  generateOutreach: (orgId: number, messageType: string, contactId?: number) =>
-    request<import('../types/api').OutreachMessage>('/outreach/generate/', {
-      method: 'POST',
-      body: JSON.stringify({
-        organization_id: orgId,
-        message_type: messageType,
-        ...(contactId && { contact_id: contactId }),
-      }),
-    }),
-  getOutreachStatus: (id: string) =>
-    request<import('../types/api').OutreachMessage>(`/outreach/${id}/status/`),
-  getOutreachHistory: () =>
-    request<{ results: import('../types/api').OutreachMessage[] }>('/outreach/history/'),
 
   // Jobs
   getOrgJobs: (orgId: number) =>

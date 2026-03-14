@@ -89,8 +89,8 @@ export default function LandingPage() {
             />
             <Step
               number="3"
-              title="Apply with context"
-              description="Generate personalized outreach that references the company's specific tech stack and open roles. Stand out from generic applications."
+              title="Apply directly"
+              description="Click through to apply on the company's job board. Each listing shows matched technologies so you know exactly why it's a fit."
             />
           </div>
         </div>
@@ -130,29 +130,18 @@ export default function LandingPage() {
       {/* Pricing */}
       <section className="bg-gray-50 py-20">
         <div className="max-w-4xl mx-auto px-6 text-center">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">Simple pricing</h2>
-          <p className="text-gray-600 mb-12">Most features are free. Pay only for premium enrichment.</p>
-          <div className="grid md:grid-cols-2 gap-8 max-w-2xl mx-auto">
-            <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-200 text-left">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Free</h3>
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">Completely free</h2>
+          <p className="text-gray-600 mb-12">No credit card, no API keys, no catch.</p>
+          <div className="max-w-sm mx-auto">
+            <div className="bg-white rounded-xl p-8 shadow-sm border-2 border-blue-600 text-left">
+              <h3 className="text-lg font-semibold text-blue-600 mb-2">Free</h3>
               <p className="text-3xl font-bold text-gray-900 mb-6">$0</p>
               <ul className="space-y-2 text-gray-600 text-sm">
-                <li className="flex items-start gap-2"><span className="text-green-600 mt-0.5">&#10003;</span> GitHub org search</li>
-                <li className="flex items-start gap-2"><span className="text-green-600 mt-0.5">&#10003;</span> Stack detection & scoring</li>
-                <li className="flex items-start gap-2"><span className="text-green-600 mt-0.5">&#10003;</span> Contributor profiles</li>
-                <li className="flex items-start gap-2"><span className="text-green-600 mt-0.5">&#10003;</span> Save & export prospects</li>
+                <li className="flex items-start gap-2"><span className="text-green-600 mt-0.5">&#10003;</span> AI resume parsing</li>
+                <li className="flex items-start gap-2"><span className="text-green-600 mt-0.5">&#10003;</span> Job matching across 5+ sources</li>
+                <li className="flex items-start gap-2"><span className="text-green-600 mt-0.5">&#10003;</span> GitHub company search</li>
+                <li className="flex items-start gap-2"><span className="text-green-600 mt-0.5">&#10003;</span> Tech stack detection & scoring</li>
               </ul>
-            </div>
-            <div className="bg-white rounded-xl p-8 shadow-sm border-2 border-blue-600 text-left">
-              <h3 className="text-lg font-semibold text-blue-600 mb-2">Pro</h3>
-              <p className="text-3xl font-bold text-gray-900 mb-6">BYOK</p>
-              <ul className="space-y-2 text-gray-600 text-sm">
-                <li className="flex items-start gap-2"><span className="text-green-600 mt-0.5">&#10003;</span> Everything in Free</li>
-                <li className="flex items-start gap-2"><span className="text-green-600 mt-0.5">&#10003;</span> Contact enrichment (Hunter.io)</li>
-                <li className="flex items-start gap-2"><span className="text-green-600 mt-0.5">&#10003;</span> AI outreach generation</li>
-                <li className="flex items-start gap-2"><span className="text-green-600 mt-0.5">&#10003;</span> Resume parsing</li>
-              </ul>
-              <p className="text-xs text-gray-500 mt-4">Bring your own API keys. We never store your data.</p>
             </div>
           </div>
         </div>

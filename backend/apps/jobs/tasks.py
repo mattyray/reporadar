@@ -184,6 +184,40 @@ def fetch_unfetched_mappings(batch_size=50):
 
 
 
+@shared_task
+def reprocess_all_job_techs(batch_size=1000):
+    """Re-run tech extraction on all active jobs.
+
+    Useful after updating TECH_KEYWORDS to backfill detected_techs.
+    """
+    from .models import JobListing
+    from .tech_extraction import extract_techs_from_text
+
+    total = 0
+    qs = JobListing.objects.filter(is_active=True).exclude(
+        description_text=""
+    ).only("id", "description_text", "detected_techs")
+
+    batch = []
+    for job in qs.iterator(chunk_size=batch_size):
+        new_techs = extract_techs_from_text(job.description_text)
+        if new_techs != job.detected_techs:
+            job.detected_techs = new_techs
+            batch.append(job)
+
+        if len(batch) >= batch_size:
+            JobListing.objects.bulk_update(batch, ["detected_techs"])
+            total += len(batch)
+            batch = []
+
+    if batch:
+        JobListing.objects.bulk_update(batch, ["detected_techs"])
+        total += len(batch)
+
+    logger.info("reprocess_all_job_techs: updated %d jobs", total)
+    return total
+
+
 # ---------------------------------------------------------------------------
 # External job board tasks
 # ---------------------------------------------------------------------------

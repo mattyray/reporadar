@@ -3,7 +3,10 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import type { JobListing, ResumeProfile } from '../types/api';
+import { useAuth } from '../hooks/useAuth';
 import TechChipSelector from '../components/TechChipSelector';
+import ResumeUploadBanner from '../components/ResumeUploadBanner';
+import SetupChecklist from '../components/SetupChecklist';
 
 const SOURCE_TABS = [
   { key: '', label: 'All Sources' },
@@ -38,6 +41,7 @@ const SOURCE_URLS: Record<string, string> = {
 };
 
 export default function JobsPage() {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [selectedTechs, setSelectedTechs] = useState<string[]>([]);
   const [locationFilter, setLocationFilter] = useState('');
@@ -53,13 +57,23 @@ export default function JobsPage() {
     retry: false,
   });
 
+  const hasResume = !!(resumeProfile && (resumeProfile as ResumeProfile).parsed_at);
+
+  // Auto-populate chips from resume and auto-trigger search
   const [resumeApplied, setResumeApplied] = useState(false);
   useEffect(() => {
     if (resumeProfile && (resumeProfile as ResumeProfile).tech_stack?.length && !resumeApplied && selectedTechs.length === 0) {
       setSelectedTechs((resumeProfile as ResumeProfile).tech_stack.map((t: string) => t.toLowerCase()));
       setResumeApplied(true);
+      setSearchTriggered(true);
     }
   }, [resumeProfile, resumeApplied, selectedTechs.length]);
+
+  const handleResumeParsed = (techStack: string[]) => {
+    setSelectedTechs(techStack);
+    setResumeApplied(true);
+    setSearchTriggered(true);
+  };
 
   const techsParam = selectedTechs.join(',');
 
@@ -84,12 +98,28 @@ export default function JobsPage() {
 
   return (
     <div className="space-y-6">
+      {/* Page header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Job Search</h1>
+        <h1 className="text-2xl font-bold text-gray-900">
+          {user?.first_name ? `Welcome, ${user.first_name}` : 'Find Jobs'}
+        </h1>
         <p className="text-gray-500 mt-1">
-          Search open roles across ATS boards, RemoteOK, Remotive, We Work Remotely, and HN Who's Hiring.
+          Upload your resume and we'll match you with open roles across thousands of companies.
         </p>
       </div>
+
+      <SetupChecklist />
+
+      {/* Resume upload — the first thing new users see */}
+      <ResumeUploadBanner onParsed={handleResumeParsed} hasExisting={hasResume} />
+
+      {/* Resume applied indicator */}
+      {hasResume && selectedTechs.length > 0 && (
+        <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-2.5">
+          <span className="font-medium">Auto-detected from your resume.</span>
+          <span className="text-green-600">Adjust technologies below to refine your results.</span>
+        </div>
+      )}
 
       {/* Search controls */}
       <div className="bg-white rounded-lg shadow p-6">
@@ -270,7 +300,6 @@ export default function JobsPage() {
                               selectedTechs.some(t => {
                                 const tl = t.toLowerCase();
                                 const thl = tech.toLowerCase();
-                                // Exact match or word-boundary match (avoid "django" matching "go")
                                 if (tl === thl) return true;
                                 const re = new RegExp(`\\b${thl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`);
                                 return re.test(tl);

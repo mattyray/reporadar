@@ -4,8 +4,6 @@ export interface UserProfile {
   first_name: string;
   last_name: string;
   github_connected: boolean;
-  has_hunter_key: boolean;
-  has_apollo_key: boolean;
 }
 
 export interface SearchConfig {
@@ -157,20 +155,6 @@ export interface Contributor {
   profile_url: string;
 }
 
-export interface Contact {
-  id: number;
-  provider: string;
-  first_name: string;
-  last_name: string;
-  email: string;
-  email_confidence: number;
-  position: string;
-  department: string;
-  seniority: string;
-  linkedin_url: string;
-  is_engineering_lead: boolean;
-}
-
 export interface ResumeProfile {
   id: number;
   file_type: string;
@@ -183,17 +167,6 @@ export interface ResumeProfile {
   parsed_at: string | null;
   created_at: string;
   updated_at: string;
-}
-
-export interface OutreachMessage {
-  id: string;
-  organization_name: string;
-  message_type: string;
-  status: 'generating' | 'completed' | 'failed';
-  subject: string;
-  body: string;
-  error: string;
-  created_at: string;
 }
 
 export interface JobListing {
