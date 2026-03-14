@@ -1,8 +1,21 @@
 import os
 
+import sentry_sdk
+
 from .base import *  # noqa: F401, F403
 
 DEBUG = False
+
+# Sentry error monitoring
+SENTRY_DSN = os.environ.get("SENTRY_DSN", "")
+if SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        traces_sample_rate=0.1,
+        profiles_sample_rate=0.1,
+        send_default_pii=False,
+        environment="production",
+    )
 
 # Site ID — the reporadar-app.netlify.app Site record in Django admin
 SITE_ID = int(os.environ.get("SITE_ID", "2"))

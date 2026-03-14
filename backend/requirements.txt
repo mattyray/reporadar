@@ -33,6 +33,9 @@ anthropic>=0.40,<1.0
 pdfminer.six>=20231228,<20260000
 python-docx>=1.1,<2.0
 
+# Error monitoring
+sentry-sdk[django,celery]>=2.0,<3.0
+
 # Server
 gunicorn>=22.0,<23.0
 whitenoise>=6.7,<7.0
