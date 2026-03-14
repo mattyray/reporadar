@@ -201,11 +201,14 @@ export interface JobListing {
   department: string;
   location: string;
   employment_type: string;
+  salary: string;
   detected_techs: string[];
   apply_url: string;
   is_active: boolean;
   posted_at: string | null;
   last_seen_at: string;
+  source: 'ats' | 'remoteok' | 'remotive' | 'wwr' | 'hn';
+  source_url: string;
   company_name: string;
   ats_platform: string;
   organization_id: number | null;
