@@ -251,7 +251,11 @@ export default function JobsPage() {
                           <span
                             key={tech}
                             className={`px-2 py-0.5 rounded text-xs ${
-                              selectedTechs.some(t => t.toLowerCase() === tech.toLowerCase())
+                              selectedTechs.some(t => {
+                                const tl = t.toLowerCase();
+                                const thl = tech.toLowerCase();
+                                return tl === thl || tl.includes(thl) || thl.includes(tl);
+                              })
                                 ? 'bg-green-100 text-green-700'
                                 : 'bg-gray-100 text-gray-600'
                             }`}
