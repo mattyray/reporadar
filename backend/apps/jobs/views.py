@@ -110,9 +110,18 @@ class JobSearchView(generics.ListAPIView):
             tech_list = [t.strip() for t in techs.split(",") if t.strip()]
             if tech_list:
                 # Normalize to canonical names (e.g. "react" → "React")
-                canonical_techs = [
-                    TECH_KEYWORDS.get(t.lower(), t) for t in tech_list
-                ]
+                # Try exact match first, then substring match against keywords
+                canonical_techs = []
+                for t in tech_list:
+                    tl = t.lower()
+                    canonical = TECH_KEYWORDS.get(tl)
+                    if not canonical:
+                        # Try substring: "claude api" should match "claude" → "Claude"
+                        for kw, cn in TECH_KEYWORDS.items():
+                            if kw in tl or tl in kw:
+                                canonical = cn
+                                break
+                    canonical_techs.append(canonical or t)
                 tech_q = Q()
                 for canonical in canonical_techs:
                     tech_q |= Q(detected_techs__contains=[canonical])
