@@ -142,7 +142,13 @@ def dev_login(request):
     return JsonResponse({"token": "session", "user": {"email": user.email}})
 
 
+def trigger_error(request):
+    """Sentry test endpoint — deliberately raises an exception."""
+    division_by_zero = 1 / 0  # noqa: F841
+
+
 urlpatterns = [
+    path("sentry-debug/", trigger_error),
     path("api/health/", lambda r: JsonResponse({"status": "ok"})),
     path("api/dev/login/", dev_login),
     path("api/auth/google/start/", oauth_start),
