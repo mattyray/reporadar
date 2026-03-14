@@ -37,16 +37,32 @@ class ATSMapping(models.Model):
 
 
 class JobListing(models.Model):
-    """A cached job posting from an ATS platform."""
+    """A cached job posting from an ATS platform or external job board."""
+
+    SOURCE_CHOICES = [
+        ("ats", "ATS Board"),
+        ("remoteok", "RemoteOK"),
+        ("remotive", "Remotive"),
+        ("wwr", "We Work Remotely"),
+        ("hn", "HackerNews Who's Hiring"),
+    ]
 
     ats_mapping = models.ForeignKey(
-        ATSMapping, on_delete=models.CASCADE, related_name="jobs"
+        ATSMapping,
+        on_delete=models.CASCADE,
+        related_name="jobs",
+        null=True,
+        blank=True,
     )
+    source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default="ats")
+    source_url = models.URLField(max_length=500, blank=True)
+    company_name = models.CharField(max_length=200, blank=True)
     external_id = models.CharField(max_length=200)
     title = models.CharField(max_length=500)
     department = models.CharField(max_length=200, blank=True)
     location = models.CharField(max_length=300, blank=True)
     employment_type = models.CharField(max_length=50, blank=True)
+    salary = models.CharField(max_length=200, blank=True)
     description_text = models.TextField(blank=True)
     apply_url = models.URLField(max_length=500)
     detected_techs = models.JSONField(default=list)
@@ -56,10 +72,31 @@ class JobListing(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ("ats_mapping", "external_id")
         indexes = [
             models.Index(fields=["is_active"]),
+            models.Index(fields=["source"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["ats_mapping", "external_id"],
+                condition=models.Q(ats_mapping__isnull=False),
+                name="unique_ats_job",
+            ),
+            models.UniqueConstraint(
+                fields=["source", "external_id"],
+                condition=models.Q(ats_mapping__isnull=True),
+                name="unique_external_job",
+            ),
         ]
 
     def __str__(self):
-        return f"{self.title} at {self.ats_mapping.company_name}"
+        name = self.company_name or (
+            self.ats_mapping.company_name if self.ats_mapping else "Unknown"
+        )
+        return f"{self.title} at {name}"
+
+    def get_company_name(self):
+        """Return company name from direct field or ATS mapping."""
+        return self.company_name or (
+            self.ats_mapping.company_name if self.ats_mapping else ""
+        )

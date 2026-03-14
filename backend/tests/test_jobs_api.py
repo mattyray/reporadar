@@ -170,3 +170,85 @@ class TestJobListingModel:
                 title="Duplicate",
                 apply_url="https://example.com",
             )
+
+    def test_external_job_no_ats_mapping(self, db):
+        """External job boards don't need an ATS mapping."""
+        job = JobListing.objects.create(
+            ats_mapping=None,
+            source="remoteok",
+            source_url="https://remoteok.com/jobs/123",
+            company_name="Cool Startup",
+            external_id="remoteok-123",
+            title="Backend Engineer",
+            location="Remote",
+            apply_url="https://remoteok.com/apply/123",
+            detected_techs=["Python", "Django"],
+        )
+        assert job.get_company_name() == "Cool Startup"
+        assert str(job) == "Backend Engineer at Cool Startup"
+
+    def test_external_job_unique_constraint(self, db):
+        """External jobs are unique by (source, external_id)."""
+        JobListing.objects.create(
+            source="remoteok",
+            company_name="Startup A",
+            external_id="rok-456",
+            title="Engineer",
+            apply_url="https://example.com",
+        )
+        with pytest.raises(Exception):
+            JobListing.objects.create(
+                source="remoteok",
+                company_name="Startup B",
+                external_id="rok-456",
+                title="Duplicate",
+                apply_url="https://example.com",
+            )
+
+
+class TestJobSearchSourceFilter:
+    def test_filter_by_source(self, api_client, job_listing, db):
+        """Filter jobs by source."""
+        JobListing.objects.create(
+            source="remoteok",
+            company_name="Remote Co",
+            external_id="rok-1",
+            title="React Developer",
+            apply_url="https://remoteok.com/apply/1",
+            detected_techs=["React"],
+        )
+        # Filter for remoteok only
+        response = api_client.get("/api/jobs/?source=remoteok")
+        assert response.status_code == 200
+        results = response.json()["results"]
+        assert len(results) == 1
+        assert results[0]["source"] == "remoteok"
+
+        # Filter for ats only
+        response = api_client.get("/api/jobs/?source=ats")
+        results = response.json()["results"]
+        assert len(results) == 1
+        assert results[0]["source"] == "ats"
+
+        # No filter returns all
+        response = api_client.get("/api/jobs/")
+        assert len(response.json()["results"]) == 2
+
+    def test_serializer_includes_source_fields(self, api_client, db):
+        """Serializer includes source and source_url for external jobs."""
+        JobListing.objects.create(
+            source="remotive",
+            source_url="https://remotive.com/jobs/123",
+            company_name="Remotive Co",
+            external_id="rem-1",
+            title="Django Dev",
+            apply_url="https://remotive.com/apply/1",
+            salary="$120k - $150k",
+            detected_techs=["Django"],
+        )
+        response = api_client.get("/api/jobs/?source=remotive")
+        job = response.json()["results"][0]
+        assert job["source"] == "remotive"
+        assert job["source_url"] == "https://remotive.com/jobs/123"
+        assert job["salary"] == "$120k - $150k"
+        assert job["company_name"] == "Remotive Co"

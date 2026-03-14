@@ -93,6 +93,13 @@ class JobSearchView(generics.ListAPIView):
             .order_by("-posted_at", "title")
         )
 
+        # Filter by source (e.g. ?source=remoteok or ?source=ats,remoteok)
+        source = self.request.query_params.get("source")
+        if source:
+            source_list = [s.strip() for s in source.split(",") if s.strip()]
+            if source_list:
+                qs = qs.filter(source__in=source_list)
+
         # Filter by technologies (match any of the requested techs)
         techs = self.request.query_params.get("techs")
         if techs:
