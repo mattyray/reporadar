@@ -43,6 +43,7 @@ export default function JobsPage() {
   const [locationFilter, setLocationFilter] = useState('');
   const [selectedSource, setSelectedSource] = useState('');
   const [selectedDays, setSelectedDays] = useState('');
+  const [remoteOnly, setRemoteOnly] = useState(false);
   const [searchTriggered, setSearchTriggered] = useState(false);
 
   // Load resume profile to auto-populate chips
@@ -63,12 +64,13 @@ export default function JobsPage() {
   const techsParam = selectedTechs.join(',');
 
   const { data: jobsData, isLoading, isFetching } = useQuery({
-    queryKey: ['jobSearch', techsParam, locationFilter, selectedSource, selectedDays],
+    queryKey: ['jobSearch', techsParam, locationFilter, selectedSource, selectedDays, remoteOnly],
     queryFn: () => api.searchJobs({
       techs: techsParam || undefined,
       location: locationFilter || undefined,
       days: selectedDays || undefined,
       source: selectedSource || undefined,
+      remote: remoteOnly ? 'true' : undefined,
     }),
     enabled: searchTriggered,
   });
@@ -122,6 +124,15 @@ export default function JobsPage() {
               ))}
             </select>
           </div>
+          <label className="flex items-center gap-2 cursor-pointer mt-5">
+            <input
+              type="checkbox"
+              checked={remoteOnly}
+              onChange={(e) => setRemoteOnly(e.target.checked)}
+              className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+            />
+            <span className="text-sm font-medium text-gray-700">Remote only</span>
+          </label>
         </div>
 
         <button

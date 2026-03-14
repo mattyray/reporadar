@@ -130,6 +130,11 @@ class JobSearchView(generics.ListAPIView):
                     )
                 ).order_by("-match_count", "-posted_at", "title")
 
+        # Filter by remote only
+        remote = self.request.query_params.get("remote")
+        if remote and remote.lower() in ("true", "1", "yes"):
+            qs = qs.filter(location__icontains="remote")
+
         # Filter by location keyword
         location = self.request.query_params.get("location")
         if location:
