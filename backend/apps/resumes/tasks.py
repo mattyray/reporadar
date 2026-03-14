@@ -46,7 +46,25 @@ def parse_resume(self, profile_id: int):
     profile.parsed_data = parsed
     profile.summary = parsed.get("summary", "")
     profile.key_projects = parsed.get("key_projects", [])
-    profile.tech_stack = parsed.get("tech_stack", [])
+    # Normalize tech names to match job detection canonical names
+    from apps.jobs.tech_extraction import TECH_KEYWORDS
+
+    raw_techs = parsed.get("tech_stack", [])
+    normalized_techs = []
+    seen = set()
+    for t in raw_techs:
+        tl = t.lower()
+        canonical = TECH_KEYWORDS.get(tl)
+        if not canonical:
+            for kw, cn in TECH_KEYWORDS.items():
+                if kw in tl or tl in kw:
+                    canonical = cn
+                    break
+        final = canonical or t
+        if final not in seen:
+            normalized_techs.append(final)
+            seen.add(final)
+    profile.tech_stack = normalized_techs
     profile.years_experience = parsed.get("years_experience")
     profile.story_hook = parsed.get("story_hook", "")
     profile.parsed_at = timezone.now()
