@@ -313,6 +313,64 @@ The `get_org_repos` method has a nice fallback: tries the `/orgs/{login}/repos` 
 
 **Content angle:** "Two paths to the same data — why good products have multiple entry points"
 
+### 2026-03-12 — ATS Slug Discovery: When Guessing Isn't Enough
+
+The original ATS integration tried the GitHub org login as the ATS slug — `stripe` → `boards.greenhouse.io/stripe`. Works great for Stripe, terrible for most companies. Linear's GitHub org is `linear-app`, but their Ashby board is at `jobs.ashbyhq.com/linear`. No amount of string manipulation connects those.
+
+Built a website scraper that solves this. When we know a company's website (from their GitHub org profile), we:
+1. Fetch the homepage HTML
+2. Regex for career/jobs page links (`/careers`, `/jobs`, `/work-with-us`, etc.)
+3. Follow up to 5 of those links
+4. Scan all the HTML for ATS embed URLs using platform-specific patterns
+
+The patterns are dead simple — each ATS has a distinctive URL format:
+- Greenhouse: `boards.greenhouse.io/{slug}` or `boards-api.greenhouse.io/v1/boards/{slug}`
+- Lever: `jobs.lever.co/{slug}`
+- Ashby: `jobs.ashbyhq.com/{slug}`
+- Workable: `apply.workable.com/{slug}`
+
+Tested on 5 companies: Vercel (found Greenhouse), Figma (found Greenhouse), Linear (found Ashby), Notion (found — platform varies), Datadog (found). 4 out of 5 discovered correctly. The one miss was a company with a careers page that loaded job listings via JavaScript (no server-rendered ATS URLs in the HTML).
+
+Also seeded 41 known tech company ATS mappings as a baseline. Had to verify every single one — turns out half my original list was wrong. Notion, OpenAI, Linear, Ramp, Sentry, Render, Supabase, and Retool all moved from Greenhouse to Ashby. Companies switch ATS platforms more often than you'd think.
+
+**Content angle:** "Companies don't stay on the same ATS — and why that broke my job board"
+**Content angle:** "The 5-line regex that finds any company's job board"
+
+### 2026-03-12 — Three Bugs That Made the Jobs Page Useless
+
+Launched the Jobs page. Users searched for "React" and got zero results. Three bugs, all stacked:
+
+**Bug 1: Case sensitivity.** Frontend sends `"react"` (lowercase), but the database stores `"React"` (canonical). PostgreSQL's `JSONField __contains` lookup is case-sensitive. A search for `"react"` literally could not find `"React"`. Fix: normalize all search terms through the `TECH_KEYWORDS` mapping (`"react"` → `"React"`) before querying.
+
+**Bug 2: 20-result cap.** DRF's global `PAGE_SIZE = 20` was limiting ALL `ListAPIView` responses, including job search. With 3,700+ jobs in the database, users only saw 20. Fix: added a `JobSearchPagination` class with `page_size = 100` specifically for the jobs endpoint.
+
+**Bug 3: No relevance sorting.** Results came back in arbitrary order. A job mentioning React, TypeScript, AND Node.js ranked the same as one mentioning only React. Fix: Django `Case/When` annotations that count how many of the user's selected techs appear in each job's `detected_techs`, then `ORDER BY -match_count, -posted_at`. Best matches first, then newest.
+
+The frontend now shows "236 jobs found (showing first 100)" with the most relevant results on top. Three bugs, three fixes, completely different user experience.
+
+**Content angle:** "Three bugs that made my feature look broken — and why case sensitivity is a silent killer"
+
+### 2026-03-13 — First Real Users (Not Me)
+
+Checked the production database and found 4 users — 2 of which aren't me. Andy (March 11) connected GitHub and searched for Python + JavaScript, got 22 results. Ajit (March 13) searched for 12 technologies at once — Python, Django, TypeScript, FastAPI, Next.js, Rust, AWS, Docker, Redis, Celery, PyTorch — and got 49 results with an average match score of 44.
+
+Neither saved any prospects or uploaded resumes. Can't tell if they clicked into any company detail pages because we had zero analytics. Which led to...
+
+**Content angle:** "My first two real users — what I learned from having zero analytics"
+
+### 2026-03-14 — Privacy-Friendly Analytics: No Cookies, No Third Party
+
+Built a complete analytics system in ~370 lines. Two models: `Session` (one per visitor per day, identified by SHA-256 hash of IP + User-Agent + date) and `PageView` (one per page hit, linked to session). Single endpoint: `POST /api/analytics/track/`.
+
+The frontend `AnalyticsTracker` component uses React Router's `useLocation` hook to fire on every navigation. On page leave (or tab close), it sends time-on-page via `navigator.sendBeacon()` — the browser API designed for exactly this, fires even during `beforeunload`.
+
+GeoIP via `ip-api.com` (free, no API key) — called once per session creation, not per page view. Bot detection checks User-Agent patterns, missing `Accept-Language` header, and datacenter city names (Ashburn, Boardman, etc.).
+
+No cookies, no consent banners, no third-party scripts. Session identity is ephemeral (same person tomorrow gets a new hash because the date changes). GDPR-friendly by design. Auto-cleanup via Celery task deletes data older than 90 days.
+
+**Content angle:** "I built analytics without cookies, consent banners, or third-party scripts"
+**Content angle:** "The navigator.sendBeacon() API that makes time-on-page actually work"
+
 ---
 
 ## Phase 3: Contact Enrichment — [dates TBD]
@@ -353,3 +411,8 @@ The `get_org_repos` method has a nice fallback: tries the `/orgs/{login}/repos` 
 | "I built an AI that reads GitHub repos and tells you if you should work there" | 2026-03-12 AI repo analysis | High — unique feature, AI angle |
 | "The UX mistake that made users spam my API" | 2026-03-12 analyze button UX | Medium — relatable UX lesson |
 | "Two paths to the same data — why good products need multiple entry points" | 2026-03-12 company search | Medium — product thinking |
+| "Companies don't stay on the same ATS" | 2026-03-12 ATS slug discovery | Medium — data quality lesson |
+| "The 5-line regex that finds any company's job board" | 2026-03-12 website scraping | High — practical, shareable |
+| "Three bugs that made my feature look broken" | 2026-03-12 jobs page fixes | High — relatable debugging story |
+| "My first two real users — what I learned from zero analytics" | 2026-03-13 first users | High — founder story |
+| "I built analytics without cookies or consent banners" | 2026-03-14 analytics | High — privacy angle, practical |
