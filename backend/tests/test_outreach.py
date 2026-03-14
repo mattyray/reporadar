@@ -9,7 +9,7 @@ from rest_framework.test import APIClient
 
 from apps.enrichment.models import OrganizationContact
 from apps.outreach.models import OutreachMessage
-from apps.outreach.views import _build_prompt
+from apps.outreach.views import _build_prompt, _parse_subject
 from apps.prospects.models import Organization, OrganizationRepo, RepoStackDetection
 from apps.resumes.models import ResumeProfile
 
@@ -170,3 +170,100 @@ def test_outreach_history_returns_user_messages(api_client, user, org):
     assert response.status_code == 200
     assert len(response.data["results"]) == 1
     assert response.data["results"][0]["body"] == "Test message"
+
+
+# --- Tests for job listings in outreach context ---
+
+
+def test_build_prompt_includes_open_jobs():
+    context = {
+        "message_type": "email",
+        "organization": {"name": "Acme", "description": "Tech co", "stack": ["Django"]},
+        "contact": {"name": "Jane", "position": "CTO"},
+        "user_profile": {
+            "summary": "Django dev",
+            "tech_stack": ["Django"],
+            "key_projects": "Built stuff",
+            "story_hook": "Self-taught",
+        },
+        "open_jobs": [
+            {"title": "Senior Backend Engineer", "department": "Engineering", "location": "Remote", "detected_techs": ["Django", "Python"]},
+            {"title": "Frontend Developer", "department": "", "location": "NYC", "detected_techs": ["React"]},
+        ],
+    }
+    prompt = _build_prompt(context)
+    assert "Senior Backend Engineer" in prompt
+    assert "Frontend Developer" in prompt
+    assert "OPEN JOBS AT ACME" in prompt
+    assert "reference a specific role" in prompt.lower()
+
+
+def test_build_prompt_no_jobs_no_section():
+    context = {
+        "message_type": "email",
+        "organization": {"name": "Acme", "description": "", "stack": []},
+        "contact": {"name": "", "position": ""},
+        "user_profile": {"summary": "", "tech_stack": [], "key_projects": "", "story_hook": ""},
+        "open_jobs": [],
+    }
+    prompt = _build_prompt(context)
+    assert "OPEN JOBS" not in prompt
+
+
+# --- Tests for subject line parsing ---
+
+
+def test_parse_subject_from_email():
+    raw = "Subject: Django Engineer — Excited About Your Stack\n\nHi Jane,\n\nI noticed you're hiring..."
+    subject, body = _parse_subject(raw)
+    assert subject == "Django Engineer — Excited About Your Stack"
+    assert body.startswith("Hi Jane,")
+
+
+def test_parse_subject_no_subject_line():
+    raw = "Hi Jane,\n\nI noticed you're hiring..."
+    subject, body = _parse_subject(raw)
+    assert subject == ""
+    assert "Hi Jane" in body
+
+
+def test_build_prompt_email_requests_subject():
+    context = {
+        "message_type": "email",
+        "organization": {"name": "Co", "description": "", "stack": []},
+        "contact": {"name": "", "position": ""},
+        "user_profile": {"summary": "", "tech_stack": [], "key_projects": "", "story_hook": ""},
+    }
+    prompt = _build_prompt(context)
+    assert "Subject:" in prompt
+
+
+def test_build_prompt_linkedin_no_subject():
+    context = {
+        "message_type": "linkedin_dm",
+        "organization": {"name": "Co", "description": "", "stack": []},
+        "contact": {"name": "", "position": ""},
+        "user_profile": {"summary": "", "tech_stack": [], "key_projects": "", "story_hook": ""},
+    }
+    prompt = _build_prompt(context)
+    assert "NOT include a subject" in prompt
+
+
+@pytest.mark.django_db
+@patch("apps.outreach.views.anthropic")
+def test_email_outreach_parses_subject(mock_anthropic, api_client, org_with_stack, resume):
+    mock_message = MagicMock()
+    mock_message.content = [MagicMock(text="Subject: Love Your Django Stack\n\nHi, I saw your open roles...")]
+    mock_client = MagicMock()
+    mock_client.messages.create.return_value = mock_message
+    mock_anthropic.Anthropic.return_value = mock_client
+
+    with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
+        response = api_client.post("/api/outreach/generate/", {
+            "organization_id": org_with_stack.id,
+            "message_type": "email",
+        })
+
+    assert response.status_code == 201
+    assert response.data["subject"] == "Love Your Django Stack"
+    assert response.data["body"].startswith("Hi, I saw")
