@@ -126,4 +126,10 @@ export const api = {
     if (params.source) query.set('source', params.source);
     return request<{ count: number; results: import('../types/api').JobListing[] }>(`/jobs/?${query.toString()}`);
   },
+
+  // Resume matching
+  getMatchedJobs: () =>
+    request<{ count: number; results: (import('../types/api').JobListing & { match_score: number; matched_techs: string[] })[] }>('/resumes/matched-jobs/'),
+  triggerRematching: () =>
+    request<{ matched: number }>('/resumes/matched-jobs/', { method: 'POST' }),
 };

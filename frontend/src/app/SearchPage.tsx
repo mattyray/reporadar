@@ -381,6 +381,15 @@ export default function SearchPage() {
     setResumeApplied(true);
   };
 
+  // Matched jobs from resume
+  const { data: matchedJobsData } = useQuery({
+    queryKey: ['matchedJobs'],
+    queryFn: api.getMatchedJobs,
+    enabled: !!(resumeProfile && (resumeProfile as ResumeProfile).parsed_at),
+    retry: false,
+  });
+  const matchedJobs = matchedJobsData?.results ?? [];
+
   const recentProspects = prospects?.results?.slice(0, 6) ?? [];
   const hasResume = !!(resumeProfile && (resumeProfile as ResumeProfile).parsed_at);
 
@@ -397,6 +406,68 @@ export default function SearchPage() {
       </div>
 
       <SetupChecklist />
+
+      {/* Jobs For You — shown when resume is uploaded and matches exist */}
+      {hasResume && matchedJobs.length > 0 && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Jobs For You</h2>
+              <p className="text-sm text-gray-500 mt-0.5">
+                Based on your resume: {(resumeProfile as ResumeProfile).tech_stack?.slice(0, 5).join(', ')}
+                {((resumeProfile as ResumeProfile).tech_stack?.length ?? 0) > 5 && ' +more'}
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                const techs = (resumeProfile as ResumeProfile).tech_stack?.map((t: string) => t.toLowerCase()) ?? [];
+                navigate(`/jobs?techs=${techs.join(',')}`);
+              }}
+              className="text-sm text-indigo-600 hover:underline cursor-pointer"
+            >
+              View all matches
+            </button>
+          </div>
+          <div className="space-y-3">
+            {matchedJobs.slice(0, 8).map((job: any) => (
+              <div key={job.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                <div className="min-w-0 flex-1">
+                  <a
+                    href={job.apply_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-medium text-sm text-gray-900 hover:text-indigo-600"
+                  >
+                    {job.title}
+                  </a>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-xs text-gray-500">{job.company_name}</span>
+                    {job.location && <span className="text-xs text-gray-400">{job.location}</span>}
+                    {job.salary && <span className="text-xs text-green-600">{job.salary}</span>}
+                  </div>
+                  {job.matched_techs?.length > 0 && (
+                    <div className="flex gap-1 mt-1">
+                      {job.matched_techs.map((tech: string) => (
+                        <span key={tech} className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs">
+                          {tech}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <a
+                  href={job.apply_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex-shrink-0 text-sm text-indigo-600 hover:text-indigo-800 font-medium ml-4"
+                >
+                  Apply
+                </a>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Company lookup — search by name */}
       {user?.github_connected && (
