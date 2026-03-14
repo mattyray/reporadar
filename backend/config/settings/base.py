@@ -176,6 +176,36 @@ CELERY_TASK_TIME_LIMIT = 900  # 15 minutes hard limit
 CELERY_TASK_SOFT_TIME_LIMIT = 600  # 10 minutes soft limit
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 
+# Celery Beat schedule (periodic tasks)
+from celery.schedules import crontab  # noqa: E402
+
+CELERY_BEAT_SCHEDULE = {
+    "refresh-ats-jobs-daily": {
+        "task": "apps.jobs.tasks.refresh_all_jobs",
+        "schedule": crontab(hour=6, minute=0),  # 6 AM UTC daily
+    },
+    "fetch-remoteok-daily": {
+        "task": "apps.jobs.tasks.fetch_remoteok_jobs",
+        "schedule": crontab(hour=7, minute=0),  # 7 AM UTC daily
+    },
+    "fetch-remotive-daily": {
+        "task": "apps.jobs.tasks.fetch_remotive_jobs",
+        "schedule": crontab(hour=7, minute=30),  # 7:30 AM UTC daily
+    },
+    "fetch-wwr-jobs": {
+        "task": "apps.jobs.tasks.fetch_wwr_jobs",
+        "schedule": crontab(hour="*/6", minute=15),  # Every 6 hours
+    },
+    "fetch-hn-hiring-monthly": {
+        "task": "apps.jobs.tasks.fetch_hn_hiring",
+        "schedule": crontab(day_of_month=1, hour=12, minute=0),  # 1st of month
+    },
+    "fetch-unfetched-ats-mappings": {
+        "task": "apps.jobs.tasks.fetch_unfetched_mappings",
+        "schedule": crontab(hour=8, minute=0),  # 8 AM UTC daily
+    },
+}
+
 # Redis cache
 CACHES = {
     "default": {
