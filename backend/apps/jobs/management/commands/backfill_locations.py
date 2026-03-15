@@ -1,10 +1,13 @@
-"""Re-run tech extraction on all active job listings.
+"""Backfill structured location fields on all active job listings.
+
+Parses the raw `location` string into is_remote, workplace_type, remote_region,
+country_codes, loc_region, and loc_city.
 
 Usage:
-    python manage.py reprocess_techs                # process all active jobs
-    python manage.py reprocess_techs --batch 500    # custom batch size
-    python manage.py reprocess_techs --start-id 0   # resume from a specific ID
-    python manage.py reprocess_techs --dry-run      # show changes without saving
+    python manage.py backfill_locations                # process all active jobs
+    python manage.py backfill_locations --batch 500    # custom batch size
+    python manage.py backfill_locations --start-id 0   # resume from a specific ID
+    python manage.py backfill_locations --dry-run      # show changes without saving
 """
 
 import time
@@ -12,12 +15,12 @@ import time
 from django.core.management.base import BaseCommand
 from django.db import connection
 
+from apps.jobs.location_parser import parse_location
 from apps.jobs.models import JobListing
-from apps.jobs.tech_extraction import extract_techs_from_text
 
 
 class Command(BaseCommand):
-    help = "Re-run tech extraction on all active jobs (use after updating TECH_KEYWORDS)"
+    help = "Backfill structured location fields on all active jobs"
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -35,12 +38,8 @@ class Command(BaseCommand):
         dry_run = options["dry_run"]
         last_id = options["start_id"]
 
-        total = (
-            JobListing.objects.filter(is_active=True)
-            .exclude(description_text="")
-            .count()
-        )
-        self.stdout.write(f"Total active jobs with descriptions: {total}")
+        total = JobListing.objects.filter(is_active=True).count()
+        self.stdout.write(f"Total active jobs: {total}")
         if last_id:
             self.stdout.write(f"Resuming from ID > {last_id}")
         if dry_run:
@@ -52,16 +51,12 @@ class Command(BaseCommand):
 
         while True:
             try:
-                # Force fresh DB connection each batch (avoids Railway timeout)
                 connection.close()
 
                 batch = list(
-                    JobListing.objects.filter(
-                        is_active=True, id__gt=last_id
-                    )
-                    .exclude(description_text="")
+                    JobListing.objects.filter(is_active=True, id__gt=last_id)
                     .order_by("id")
-                    .values_list("id", "description_text", "detected_techs")[:batch_size]
+                    .values_list("id", "location")[:batch_size]
                 )
             except Exception as e:
                 errors += 1
@@ -71,26 +66,31 @@ class Command(BaseCommand):
                 if errors > 10:
                     self.stdout.write(self.style.ERROR("Too many errors, stopping."))
                     break
-                time.sleep(2 ** min(errors, 5))  # backoff: 2s, 4s, 8s... max 32s
+                time.sleep(2 ** min(errors, 5))
                 continue
 
             if not batch:
                 break
 
             bulk_updates = []
-            for job_id, description, old_techs in batch:
+            for job_id, location_str in batch:
                 try:
-                    new_techs = extract_techs_from_text(description or "")
-                    old_sorted = sorted(old_techs) if old_techs else []
-                    if new_techs != old_sorted:
-                        if not dry_run:
-                            bulk_updates.append(
-                                JobListing(id=job_id, detected_techs=new_techs)
-                            )
-                        updated += 1
+                    loc = parse_location(location_str or "")
+                    if not dry_run:
+                        job = JobListing(
+                            id=job_id,
+                            is_remote=loc.is_remote,
+                            workplace_type=loc.workplace_type,
+                            remote_region=loc.remote_region,
+                            country_codes=loc.country_codes,
+                            loc_region=loc.region[:100],
+                            loc_city=loc.city[:150],
+                        )
+                        bulk_updates.append(job)
+                    updated += 1
                 except Exception as e:
                     self.stdout.write(
-                        self.style.ERROR(f"Job {job_id}: extraction error: {e}")
+                        self.style.ERROR(f"Job {job_id}: parse error: {e}")
                     )
                 last_id = job_id
 
@@ -98,7 +98,10 @@ class Command(BaseCommand):
                 try:
                     connection.close()
                     JobListing.objects.bulk_update(
-                        bulk_updates, ["detected_techs"], batch_size=batch_size
+                        bulk_updates,
+                        ["is_remote", "workplace_type", "remote_region",
+                         "country_codes", "loc_region", "loc_city"],
+                        batch_size=batch_size,
                     )
                 except Exception as e:
                     errors += 1

@@ -87,7 +87,7 @@ export const api = {
     request<{ results: import('../types/api').JobListing[] }>(`/jobs/org/${orgId}/`),
   checkOrgJobs: (orgId: number) =>
     request<import('../types/api').JobCheckResponse>(`/jobs/org/${orgId}/check/`, { method: 'POST' }),
-  searchJobs: (params: { techs?: string; location?: string; department?: string; title?: string; days?: string; source?: string; remote?: string }) => {
+  searchJobs: (params: { techs?: string; location?: string; department?: string; title?: string; days?: string; source?: string; remote?: string; remote_region?: string; workplace_type?: string; country?: string; city?: string; state?: string }) => {
     const query = new URLSearchParams();
     if (params.techs) query.set('techs', params.techs);
     if (params.location) query.set('location', params.location);
@@ -96,6 +96,11 @@ export const api = {
     if (params.days) query.set('days', params.days);
     if (params.source) query.set('source', params.source);
     if (params.remote) query.set('remote', params.remote);
+    if (params.remote_region) query.set('remote_region', params.remote_region);
+    if (params.workplace_type) query.set('workplace_type', params.workplace_type);
+    if (params.country) query.set('country', params.country);
+    if (params.city) query.set('city', params.city);
+    if (params.state) query.set('state', params.state);
     return request<{ count: number; results: import('../types/api').JobListing[] }>(`/jobs/?${query.toString()}`);
   },
 

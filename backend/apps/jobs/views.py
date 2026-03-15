@@ -142,12 +142,46 @@ class JobSearchView(generics.ListAPIView):
                     )
                 ).order_by("-match_count", "-posted_at", "title")
 
-        # Filter by remote only
+        # Filter by remote — uses structured is_remote field
         remote = self.request.query_params.get("remote")
         if remote and remote.lower() in ("true", "1", "yes"):
-            qs = qs.filter(location__icontains="remote")
+            qs = qs.filter(is_remote=True)
 
-        # Filter by location keyword
+        # Filter by remote region (e.g. ?remote_region=us_only,americas,global,unspecified)
+        remote_region = self.request.query_params.get("remote_region")
+        if remote_region:
+            regions = [r.strip() for r in remote_region.split(",") if r.strip()]
+            if regions:
+                qs = qs.filter(remote_region__in=regions)
+
+        # Filter by workplace type (e.g. ?workplace_type=remote,hybrid)
+        workplace_type = self.request.query_params.get("workplace_type")
+        if workplace_type:
+            types = [t.strip() for t in workplace_type.split(",") if t.strip()]
+            if types:
+                qs = qs.filter(workplace_type__in=types)
+
+        # Filter by country code (e.g. ?country=US or ?country=US,CA)
+        country = self.request.query_params.get("country")
+        if country:
+            country_list = [c.strip().upper() for c in country.split(",") if c.strip()]
+            if country_list:
+                country_q = Q()
+                for cc in country_list:
+                    country_q |= Q(country_codes__contains=[cc])
+                qs = qs.filter(country_q)
+
+        # Filter by city keyword
+        city = self.request.query_params.get("city")
+        if city:
+            qs = qs.filter(loc_city__icontains=city)
+
+        # Filter by state/region keyword
+        state = self.request.query_params.get("state")
+        if state:
+            qs = qs.filter(loc_region__icontains=state)
+
+        # Legacy: location keyword search (fallback for free-text search)
         location = self.request.query_params.get("location")
         if location:
             qs = qs.filter(location__icontains=location)

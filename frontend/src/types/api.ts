@@ -188,6 +188,12 @@ export interface JobListing {
   ats_platform: string;
   organization_id: number | null;
   avatar_url: string;
+  is_remote: boolean;
+  workplace_type: 'remote' | 'hybrid' | 'onsite' | 'unknown';
+  remote_region: string;
+  country_codes: string[];
+  loc_region: string;
+  loc_city: string;
 }
 
 export interface JobCheckResponse {

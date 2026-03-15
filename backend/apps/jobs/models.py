@@ -47,6 +47,24 @@ class JobListing(models.Model):
         ("hn", "HackerNews Who's Hiring"),
     ]
 
+    WORKPLACE_CHOICES = [
+        ("remote", "Remote"),
+        ("hybrid", "Hybrid"),
+        ("onsite", "On-site"),
+        ("unknown", "Unknown"),
+    ]
+
+    REMOTE_REGION_CHOICES = [
+        ("us_only", "US Only"),
+        ("us_canada", "US & Canada"),
+        ("americas", "Americas"),
+        ("europe", "Europe"),
+        ("emea", "EMEA"),
+        ("apac", "APAC"),
+        ("global", "Global / Worldwide"),
+        ("unspecified", "Unspecified"),
+    ]
+
     ats_mapping = models.ForeignKey(
         ATSMapping,
         on_delete=models.CASCADE,
@@ -71,10 +89,25 @@ class JobListing(models.Model):
     last_seen_at = models.DateTimeField(auto_now=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    # Structured location fields (parsed from raw location string or ATS structured data)
+    is_remote = models.BooleanField(default=False, db_index=True)
+    workplace_type = models.CharField(
+        max_length=10, choices=WORKPLACE_CHOICES, default="unknown"
+    )
+    remote_region = models.CharField(
+        max_length=15, choices=REMOTE_REGION_CHOICES, default="unspecified", blank=True
+    )
+    country_codes = models.JSONField(default=list, blank=True)
+    loc_region = models.CharField(max_length=100, blank=True)
+    loc_city = models.CharField(max_length=150, blank=True)
+
     class Meta:
         indexes = [
             models.Index(fields=["is_active"]),
             models.Index(fields=["source"]),
+            models.Index(fields=["is_remote"]),
+            models.Index(fields=["workplace_type"]),
+            models.Index(fields=["remote_region"]),
         ]
         constraints = [
             models.UniqueConstraint(

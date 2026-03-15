@@ -30,6 +30,12 @@ class JobListingSerializer(serializers.ModelSerializer):
             "ats_platform",
             "organization_id",
             "avatar_url",
+            "is_remote",
+            "workplace_type",
+            "remote_region",
+            "country_codes",
+            "loc_region",
+            "loc_city",
         ]
 
     def get_company_name(self, obj):

@@ -28,6 +28,13 @@ class JobPost:
     description_text: str = ""
     apply_url: str = ""
     posted_at: str | None = None
+    # Structured location fields (populated by platforms that provide them)
+    structured_is_remote: bool | None = None
+    structured_workplace_type: str = ""  # remote, hybrid, onsite, on-site
+    structured_country: str = ""
+    structured_country_code: str = ""
+    structured_region: str = ""
+    structured_city: str = ""
 
 
 @dataclass
@@ -256,6 +263,7 @@ class ATSClient:
                 description_text=full_text,
                 apply_url=posting.get("hostedUrl", ""),
                 posted_at=None,  # Lever provides createdAt as epoch, handle if needed
+                structured_workplace_type=posting.get("workplaceType", ""),
             ))
         return jobs
 
@@ -272,6 +280,10 @@ class ATSClient:
 
         jobs = []
         for job in data.get("jobs", []):
+            # Extract structured address if available
+            address = job.get("address") or {}
+            postal = address.get("postalAddress") or {}
+
             jobs.append(JobPost(
                 external_id=str(job.get("id", "")),
                 title=job.get("title", ""),
@@ -281,6 +293,11 @@ class ATSClient:
                 description_text=_strip_html(job.get("descriptionHtml", "")),
                 apply_url=job.get("jobUrl", ""),
                 posted_at=job.get("publishedAt"),
+                structured_is_remote=job.get("isRemote"),
+                structured_workplace_type=job.get("workplaceType", ""),
+                structured_country=postal.get("addressCountry", ""),
+                structured_region=postal.get("addressRegion", ""),
+                structured_city=postal.get("addressLocality", ""),
             ))
         return jobs
 
@@ -297,13 +314,23 @@ class ATSClient:
 
         jobs = []
         for job in data.get("jobs", []):
-            location_parts = []
             loc = job.get("location", {})
+            loc_city = ""
+            loc_region = ""
+            loc_country = ""
+            loc_country_code = ""
             if isinstance(loc, dict):
-                for field in ["city", "region", "country"]:
-                    if loc.get(field):
-                        location_parts.append(loc[field])
+                loc_city = loc.get("city", "")
+                loc_region = loc.get("region", "")
+                loc_country = loc.get("country", "")
+                loc_country_code = loc.get("country_code", "")
+
+            location_parts = [p for p in [loc_city, loc_region, loc_country] if p]
             location_str = ", ".join(location_parts)
+
+            # Workable has telecommuting bool and workplace_type enum
+            is_remote = job.get("telecommuting")
+            workplace_type = job.get("workplace_type", "")
 
             jobs.append(JobPost(
                 external_id=str(job.get("shortcode", job.get("id", ""))),
@@ -312,6 +339,12 @@ class ATSClient:
                 location=location_str,
                 description_text="",  # Workable widget doesn't include description by default
                 apply_url=job.get("url", ""),
+                structured_is_remote=is_remote,
+                structured_workplace_type=workplace_type,
+                structured_country=loc_country,
+                structured_country_code=loc_country_code,
+                structured_region=loc_region,
+                structured_city=loc_city,
             ))
         return jobs
 

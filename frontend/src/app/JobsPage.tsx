@@ -40,6 +40,15 @@ const SOURCE_URLS: Record<string, string> = {
   hn: 'https://news.ycombinator.com',
 };
 
+const REMOTE_REGION_OPTIONS = [
+  { value: 'us_only,us_canada,americas,global,unspecified', label: 'US-friendly (US, Americas, Global, Unspecified)' },
+  { value: 'us_only', label: 'US Only' },
+  { value: 'us_only,us_canada', label: 'US & Canada' },
+  { value: 'europe,emea,global,unspecified', label: 'Europe-friendly' },
+  { value: 'global', label: 'Global / Worldwide only' },
+  { value: '', label: 'Any region' },
+] as const;
+
 export default function JobsPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -48,6 +57,8 @@ export default function JobsPage() {
   const [selectedSource, setSelectedSource] = useState('');
   const [selectedDays, setSelectedDays] = useState('');
   const [remoteOnly, setRemoteOnly] = useState(false);
+  const [includeHybrid, setIncludeHybrid] = useState(false);
+  const [remoteRegion, setRemoteRegion] = useState('us_only,us_canada,americas,global,unspecified');
   const [searchTriggered, setSearchTriggered] = useState(false);
 
   // Load resume profile to auto-populate chips
@@ -77,14 +88,21 @@ export default function JobsPage() {
 
   const techsParam = selectedTechs.join(',');
 
+  // Build workplace_type filter
+  const workplaceTypeParam = remoteOnly
+    ? (includeHybrid ? 'remote,hybrid' : 'remote')
+    : undefined;
+
   const { data: jobsData, isLoading, isFetching } = useQuery({
-    queryKey: ['jobSearch', techsParam, locationFilter, selectedSource, selectedDays, remoteOnly],
+    queryKey: ['jobSearch', techsParam, locationFilter, selectedSource, selectedDays, remoteOnly, includeHybrid, remoteRegion],
     queryFn: () => api.searchJobs({
       techs: techsParam || undefined,
       location: locationFilter || undefined,
       days: selectedDays || undefined,
       source: selectedSource || undefined,
       remote: remoteOnly ? 'true' : undefined,
+      remote_region: (remoteOnly && remoteRegion) ? remoteRegion : undefined,
+      workplace_type: workplaceTypeParam,
     }),
     enabled: searchTriggered,
   });
@@ -131,38 +149,75 @@ export default function JobsPage() {
         />
 
         <div className="mt-4 pt-4 border-t border-gray-100">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Location (optional)</label>
-          <input
-            type="text"
-            value={locationFilter}
-            onChange={(e) => setLocationFilter(e.target.value)}
-            placeholder="e.g. Remote, San Francisco, London"
-            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-          />
-        </div>
+          <div className="flex flex-wrap items-start gap-4">
+            {/* Remote toggle */}
+            <div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={remoteOnly}
+                  onChange={(e) => setRemoteOnly(e.target.checked)}
+                  className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <span className="text-sm font-medium text-gray-700">Remote only</span>
+              </label>
+              {remoteOnly && (
+                <label className="flex items-center gap-2 cursor-pointer mt-2 ml-6">
+                  <input
+                    type="checkbox"
+                    checked={includeHybrid}
+                    onChange={(e) => setIncludeHybrid(e.target.checked)}
+                    className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span className="text-xs text-gray-500">Include hybrid</span>
+                </label>
+              )}
+            </div>
 
-        <div className="mt-4 pt-4 border-t border-gray-100 flex flex-wrap items-center gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Posted within</label>
-            <select
-              value={selectedDays}
-              onChange={(e) => setSelectedDays(e.target.value)}
-              className="border border-gray-300 rounded-md px-3 py-2 text-sm"
-            >
-              {RECENCY_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
+            {/* Remote region dropdown — only shows when remote is checked */}
+            {remoteOnly && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Region</label>
+                <select
+                  value={remoteRegion}
+                  onChange={(e) => setRemoteRegion(e.target.value)}
+                  className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+                >
+                  {REMOTE_REGION_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Posted within */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Posted within</label>
+              <select
+                value={selectedDays}
+                onChange={(e) => setSelectedDays(e.target.value)}
+                className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+              >
+                {RECENCY_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
           </div>
-          <label className="flex items-center gap-2 cursor-pointer mt-5">
-            <input
-              type="checkbox"
-              checked={remoteOnly}
-              onChange={(e) => setRemoteOnly(e.target.checked)}
-              className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-            />
-            <span className="text-sm font-medium text-gray-700">Remote only</span>
-          </label>
+
+          {/* Location text search (for city/keyword when NOT doing remote filter) */}
+          {!remoteOnly && (
+            <div className="mt-3">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Location (city, state, or keyword)</label>
+              <input
+                type="text"
+                value={locationFilter}
+                onChange={(e) => setLocationFilter(e.target.value)}
+                placeholder="e.g. San Francisco, Austin TX, London"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+              />
+            </div>
+          )}
         </div>
 
         <div className="mt-4 flex gap-2">
@@ -180,6 +235,8 @@ export default function JobsPage() {
               setSelectedSource('');
               setSelectedDays('');
               setRemoteOnly(false);
+              setIncludeHybrid(false);
+              setRemoteRegion('us_only,us_canada,americas,global,unspecified');
               setSearchTriggered(false);
               setResumeApplied(true);  // prevent resume techs from re-populating
             }}
@@ -266,6 +323,11 @@ export default function JobsPage() {
                       )}
                     </div>
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      {job.is_remote && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">
+                          {job.workplace_type === 'hybrid' ? 'Hybrid' : 'Remote'}
+                        </span>
+                      )}
                       {job.location && (
                         <span className="text-xs text-gray-500">{job.location}</span>
                       )}

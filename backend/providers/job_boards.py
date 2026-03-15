@@ -33,6 +33,9 @@ class ExternalJobPost:
     source_url: str = ""
     posted_at: str | None = None
     tags: list[str] = field(default_factory=list)
+    # Structured location hints (when the board provides them)
+    structured_is_remote: bool | None = None
+    structured_remote_region: str = ""  # us_only, global, etc.
 
 
 # ---------------------------------------------------------------------------
@@ -83,6 +86,7 @@ def fetch_remoteok_jobs() -> list[ExternalJobPost]:
                 source_url=item.get("url", ""),
                 posted_at=item.get("date"),
                 tags=item.get("tags", []),
+                structured_is_remote=True,  # RemoteOK = all remote
             )
         )
 
@@ -116,19 +120,21 @@ def fetch_remotive_jobs() -> list[ExternalJobPost]:
     jobs_data = data.get("jobs", [])
     jobs = []
     for item in jobs_data:
+        req_location = item.get("candidate_required_location", "")
         jobs.append(
             ExternalJobPost(
                 external_id=f"rem-{item['id']}",
                 source="remotive",
                 company_name=item.get("company_name", ""),
                 title=item.get("title", ""),
-                location=item.get("candidate_required_location", ""),
+                location=req_location,
                 employment_type=_normalize_job_type(item.get("job_type", "")),
                 salary=item.get("salary", ""),
                 description_text=_strip_html(item.get("description", "")),
                 apply_url=item.get("url", ""),
                 source_url=item.get("url", ""),
                 posted_at=item.get("publication_date"),
+                structured_is_remote=True,  # Remotive = all remote
             )
         )
 
@@ -187,6 +193,7 @@ def fetch_wwr_jobs() -> list[ExternalJobPost]:
                     apply_url=entry.get("link", ""),
                     source_url=entry.get("link", ""),
                     posted_at=entry.get("published"),
+                    structured_is_remote=True,  # WWR = all remote
                 )
             )
 

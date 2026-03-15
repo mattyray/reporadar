@@ -7,6 +7,7 @@ from django.utils import timezone
 
 from apps.prospects.models import Organization
 
+from .location_parser import parse_location, parse_structured_location
 from .models import ATSMapping, JobListing
 from .tech_extraction import extract_techs_from_text
 
@@ -287,6 +288,15 @@ def _store_external_jobs(jobs):
             if posted_at and posted_at.tzinfo is None:
                 posted_at = tz.make_aware(posted_at)
 
+        # Parse location — use structured hints from boards that provide them
+        loc = parse_structured_location(
+            location_str=job.location,
+            is_remote=job.structured_is_remote,
+        )
+        # Override remote_region if the board gave us a specific one
+        if job.structured_remote_region:
+            loc.remote_region = job.structured_remote_region
+
         JobListing.objects.update_or_create(
             source=job.source,
             external_id=job.external_id,
@@ -304,6 +314,12 @@ def _store_external_jobs(jobs):
                 "detected_techs": techs,
                 "is_active": True,
                 "posted_at": posted_at,
+                "is_remote": loc.is_remote,
+                "workplace_type": loc.workplace_type,
+                "remote_region": loc.remote_region,
+                "country_codes": loc.country_codes,
+                "loc_region": loc.region[:100],
+                "loc_city": loc.city[:150],
             },
         )
         seen_ids.add(job.external_id)
@@ -342,6 +358,17 @@ def _refresh_mapping_jobs(client, mapping: ATSMapping):
             if posted_at and posted_at.tzinfo is None:
                 posted_at = tz.make_aware(posted_at)
 
+        # Parse location — use structured data if the platform provides it
+        loc = parse_structured_location(
+            location_str=job_post.location or "",
+            is_remote=job_post.structured_is_remote,
+            workplace_type=job_post.structured_workplace_type or None,
+            country=job_post.structured_country,
+            country_code=job_post.structured_country_code,
+            region=job_post.structured_region,
+            city=job_post.structured_city,
+        )
+
         JobListing.objects.update_or_create(
             ats_mapping=mapping,
             external_id=job_post.external_id,
@@ -357,6 +384,12 @@ def _refresh_mapping_jobs(client, mapping: ATSMapping):
                 "detected_techs": techs,
                 "is_active": True,
                 "posted_at": posted_at,
+                "is_remote": loc.is_remote,
+                "workplace_type": loc.workplace_type,
+                "remote_region": loc.remote_region,
+                "country_codes": loc.country_codes,
+                "loc_region": loc.region[:100],
+                "loc_city": loc.city[:150],
             },
         )
         seen_ids.add(job_post.external_id)
