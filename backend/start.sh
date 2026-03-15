@@ -6,6 +6,15 @@ echo "PORT=$PORT"
 echo "DJANGO_SETTINGS_MODULE=$DJANGO_SETTINGS_MODULE"
 echo "DATABASE_URL is set: $([ -n "$DATABASE_URL" ] && echo 'yes' || echo 'NO')"
 
+# Download MaxMind GeoLite2-City DB for analytics GeoIP (if key is set)
+if [ -n "$MAXMIND_LICENSE_KEY" ]; then
+  echo "=== Downloading GeoLite2-City database ==="
+  curl -sSL "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City&license_key=${MAXMIND_LICENSE_KEY}&suffix=tar.gz" \
+    | tar -xz --strip-components=1 -C /app/ --wildcards '*.mmdb' 2>&1 \
+    && echo "GeoLite2-City.mmdb downloaded" \
+    || echo "WARNING: GeoLite2 download failed, falling back to ip-api.com"
+fi
+
 echo "=== Running migrations ==="
 python manage.py migrate 2>&1
 

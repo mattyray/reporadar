@@ -206,6 +206,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.resumes.tasks.refresh_all_job_matches",
         "schedule": crontab(hour=9, minute=0),  # 9 AM UTC daily (after jobs refresh)
     },
+    "cleanup-old-analytics": {
+        "task": "apps.analytics.tasks.cleanup_old_analytics",
+        "schedule": crontab(hour=3, minute=0),  # 3 AM UTC daily
+    },
 }
 
 # Redis cache
