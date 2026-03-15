@@ -443,7 +443,65 @@ Three outreach upgrades shipped in the same session:
 
 **Content angle:** "Making AI outreach actually personal — why context beats templates"
 
-## Phase 4: Contact Enrichment — [dates TBD]
+## Phase 4: Jobs-First Pivot — March 2026
+
+### 2026-03-15 — The Honest Pivot: GitHub Search Wasn't Finding Jobs
+
+Had to face the truth: the GitHub repo scanning — the original core feature — hadn't actually helped find a single job. The company search, tech stack detection, AI tool signals, scoring algorithm — all technically impressive, none practically useful for landing interviews.
+
+Meanwhile, the ATS job aggregation (built as a secondary feature) was sitting on **177,675 real job listings** from 5,046 companies across Greenhouse, Lever, Ashby, and Workable. The daily Celery beat refresh was silently building the most valuable part of the app. RemoteOK, Remotive, WWR, and HN Who's Hiring added another 600 listings.
+
+The pivot: make job search the primary experience. Upload resume → see matching jobs → apply. GitHub company search becomes a secondary "Companies" tab for power users. The data was already there — the UX just wasn't pointing at it.
+
+**What got cut:**
+- Outreach (AI message generation via Claude) — removed entirely. Nobody was using it, and "generate a cold email" doesn't help as much as "here are 50 matching jobs."
+- Enrichment (Hunter.io/Apollo.io contact finding) — removed entirely. Finding hiring manager emails is a solved problem with LinkedIn — we don't need to reinvent it.
+- API keys section in Settings — no more Hunter/Apollo BYOK.
+- The big amber "Connect GitHub to start" banner — GitHub is now optional, not required.
+
+**What stayed:**
+- The entire GitHub search pipeline — it just moved to the Companies tab
+- ATS probing — keeps running, keeps feeding job data
+- Resume parsing — became the primary onboarding flow
+- All Celery beat schedules — untouched
+
+**The numbers:** 167 insertions, 1,211 deletions across 18 files. More code removed than added. The best kind of refactor.
+
+**Content angle:** "I deleted 1,200 lines of code and made my app 10x more useful"
+**Content angle:** "The feature I built first was the feature nobody used — and the secondary feature was the product"
+
+### 2026-03-15 — Tech Detection: 53% of Jobs Were Invisible
+
+After pivoting to jobs-first, realized half the job database was useless. **94,811 out of 177,675 jobs (53%) had empty `detected_techs`** — meaning they'd never match anyone's resume search. The tech extraction was running, but the keyword list only had ~130 entries and was missing extremely common terms.
+
+**The "Go" false positive disaster:** 19,597 jobs had `["Go"]` as their ONLY detected tech. Not Go the programming language — the English word "go" appearing in job descriptions like "you will go home knowing" and "as we go to market." A "Lead Dentist" job was tagged with Go. The keyword `"go"` matched on word boundaries, but "go" is just too common in English. Fix: removed `"go"`, kept `"golang"` as the only trigger for Go.
+
+**Missing keywords (biggest impact):** SQL — the most common technology in engineering job descriptions — was completely absent from the keyword list. Also missing: C++, HTML, CSS, Linux, Git, React Native, Flutter, iOS, Android, Apache Spark, Snowflake, Airflow, dbt, Databricks, Spring Boot, ASP.NET, Blazor, Entity Framework, Webpack, Vite, and about 15 more. Added ~35 new keywords total.
+
+**Reprocessing 185k jobs in production:** Wrote a `reprocess_all_job_techs` Celery task and a `reprocess_techs` management command. The Celery task worked locally but Railway's database kept killing the connection after ~60k rows. Switched to a raw SQL approach via `railway run` with fresh psycopg2 connections per batch of 200 rows and retry logic. Still hit connection drops but the retry logic kept it going.
+
+**Results after reprocessing:** ~67k jobs updated. The Go false positive dropped from 14,291 → 0. New keywords lit up thousands of previously invisible jobs. Detection rate improved from 46.6% to roughly 65%+ with the new keywords catching SQL, Linux, HTML/CSS, Spring, and other common terms.
+
+**The lesson:** Tech detection from job descriptions is fundamentally different from tech detection from dependency files. Dependency files are structured and unambiguous — `django==4.2` means Django. Job descriptions are free text where common English words collide with programming language names. Short keywords (Go, R, C) need special handling or they'll match everything.
+
+**Content angle:** "53% of my job database was invisible — the keyword gap nobody checks"
+**Content angle:** "The word 'go' ruined my tech detection for 20,000 jobs"
+
+### 2026-03-15 — The Frontend Reorganization
+
+The route swap was clean but had ripple effects everywhere:
+
+**Navigation:** `Jobs | Companies | Settings` (was `Dashboard | Companies | Jobs | Outreach | Settings`). Three links instead of five. The Jobs tab renders what used to be the JobsPage, now enhanced with a welcome header, resume upload banner, and auto-triggered search when resume techs load.
+
+**SetupChecklist redesign:** The old version had a massive amber banner screaming "CONNECT GITHUB OR ELSE." The new version leads with a calm blue "Upload your resume to get started" prompt. GitHub connection is demoted to a small "Also available" hint. This matches the new reality — you don't need GitHub to use the app.
+
+**Auto-search on resume load:** When a user uploads their resume and tech chips auto-populate, the job search now fires immediately. No need to hit the "Search Jobs" button. Upload → results. Two interactions instead of three.
+
+**ProspectDetailPage surgery:** Removed the "Find Email Contacts" and "Write Outreach Message" action cards. The 4-card grid became a 2-card grid (Save Company + Check Open Roles). Removed the entire Contacts section at the bottom. The page is cleaner and focused on what matters: repos, tech stack, contributors, and jobs.
+
+**Landing page:** Updated the "How it works" steps — step 3 changed from "Generate personalized outreach" to "Apply directly." Simplified pricing from Free + Pro (BYOK) to just "Completely free." No more two-column pricing comparison. One card, one message: $0, no catch.
+
+**Content angle:** "The UX surgery that turned a power tool into a product"
 
 ---
 
@@ -482,3 +540,8 @@ Three outreach upgrades shipped in the same session:
 | "Three bugs that made my feature look broken" | 2026-03-12 jobs page fixes | High — relatable debugging story |
 | "My first two real users — what I learned from zero analytics" | 2026-03-13 first users | High — founder story |
 | "I built analytics without cookies or consent banners" | 2026-03-14 analytics | High — privacy angle, practical |
+| "I deleted 1,200 lines and made my app 10x more useful" | 2026-03-15 pivot | High — founder honesty, counterintuitive |
+| "The feature I built first was the feature nobody used" | 2026-03-15 pivot | High — product lesson |
+| "The word 'go' ruined my tech detection for 20,000 jobs" | 2026-03-15 tech detection | High — specific, memorable, shareable |
+| "53% of my job database was invisible" | 2026-03-15 tech detection | Medium — data quality story |
+| "The UX surgery that turned a power tool into a product" | 2026-03-15 frontend reorg | Medium — product design |
