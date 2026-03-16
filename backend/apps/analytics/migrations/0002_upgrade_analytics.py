@@ -17,6 +17,34 @@ def populate_uuids(apps, schema_editor):
         session.save(update_fields=["uuid"])
 
 
+# Map full country names to ISO 3166-1 alpha-2 codes
+COUNTRY_MAP = {
+    "united states": "US", "canada": "CA", "united kingdom": "GB",
+    "germany": "DE", "france": "FR", "india": "IN", "australia": "AU",
+    "brazil": "BR", "japan": "JP", "china": "CN", "south korea": "KR",
+    "netherlands": "NL", "singapore": "SG", "ireland": "IE",
+    "sweden": "SE", "spain": "ES", "italy": "IT", "mexico": "MX",
+    "poland": "PL", "switzerland": "CH", "israel": "IL", "russia": "RU",
+    "argentina": "AR", "colombia": "CO", "portugal": "PT", "belgium": "BE",
+    "austria": "AT", "denmark": "DK", "norway": "NO", "finland": "FI",
+    "new zealand": "NZ", "czech republic": "CZ", "romania": "RO",
+    "ukraine": "UA", "turkey": "TR", "indonesia": "ID", "vietnam": "VN",
+    "philippines": "PH", "thailand": "TH", "pakistan": "PK",
+    "nigeria": "NG", "south africa": "ZA", "egypt": "EG", "kenya": "KE",
+    "chile": "CL", "peru": "PE", "taiwan": "TW", "hong kong": "HK",
+    "malaysia": "MY", "bangladesh": "BD", "sri lanka": "LK",
+}
+
+
+def truncate_country_to_iso(apps, schema_editor):
+    """Convert full country names to ISO 2-letter codes before column shrink."""
+    Session = apps.get_model("analytics", "Session")
+    for session in Session.objects.exclude(country="").filter(country__regex=r'^.{3,}'):
+        iso = COUNTRY_MAP.get(session.country.lower(), "")
+        session.country = iso
+        session.save(update_fields=["country"])
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -61,6 +89,8 @@ class Migration(migrations.Migration):
         ),
 
         # --- Session: shrink country to ISO 3166-1 alpha-2 ---
+        # First convert existing full names to 2-letter codes
+        migrations.RunPython(truncate_country_to_iso, migrations.RunPython.noop),
         migrations.AlterField(
             model_name="session",
             name="country",
