@@ -1,35 +1,105 @@
 # RepoRadar
 
-Find companies building with your tech stack. Search GitHub organizations by technology, detect AI development tools (Claude Code, Cursor, Copilot), enrich with business contact data, and generate personalized outreach.
+Find companies building with your tech stack, discover matching job openings, and generate personalized outreach — all from one tool.
+
+**Live at [reporadar-app.netlify.app](https://reporadar-app.netlify.app)**
 
 ## What It Does
 
-1. **Search** — Scan GitHub for organization-owned repos matching your stack criteria (Django + LangGraph, MERN + Copilot, whatever)
-2. **Detect** — Analyze dependency files, infrastructure configs, and AI tool signals to identify what companies actually build with
-3. **Score** — Rank prospects by stack match, production signals, activity, and team size
-4. **Enrich** — Pull business emails and hiring manager contacts via Hunter.io (BYOK)
-5. **Outreach** — Upload your resume and generate personalized messages that reference shared stack and specific projects
+RepoRadar scans GitHub to find companies using specific technologies, then aggregates job listings from multiple sources and matches them against your resume.
+
+1. **Search GitHub** — Find orgs and repos by tech stack (Django + React, MERN + Copilot, whatever). Detects dependencies from `requirements.txt`, `package.json`, `pyproject.toml`, `Gemfile`, `go.mod`, and more.
+2. **Detect AI Tools** — Identifies 14+ AI development tools (Claude Code, Cursor, Copilot, Windsurf, Cline, Aider, etc.) from config files.
+3. **Score & Rank** — Prospects scored 0-100 on stack match, production signals (Docker, CI/CD, tests, deployment configs), activity, and team size.
+4. **Aggregate Jobs** — Pulls job listings from 4 ATS platforms (Greenhouse, Lever, Ashby, Workable) and 4 job boards (RemoteOK, Remotive, We Work Remotely, HN Hiring). Filter by tech, location, remote region, recency, and more.
+5. **Match to Resume** — Upload your resume, Claude API extracts your tech stack, and jobs are auto-matched daily.
+6. **Enrich Contacts** — Pull business emails and hiring manager contacts via Hunter.io (BYOK).
+7. **Generate Outreach** — AI-generated personalized emails and LinkedIn DMs that reference shared stack, open roles, and specific projects.
 
 ## Tech Stack
 
-- **Backend:** Django 5, DRF, Celery, Redis, PostgreSQL
-- **Frontend:** React 19, TypeScript, Vite, Tailwind CSS
-- **AI:** Claude API (resume parsing, outreach generation)
-- **External APIs:** GitHub REST API, Hunter.io, Apollo.io (optional)
+| Layer | Technology |
+|-------|------------|
+| Backend | Django 5, Django REST Framework, Celery + Redis |
+| Frontend | React 19, TypeScript, Vite, Tailwind CSS |
+| Database | PostgreSQL 16 |
+| Cache | Redis |
+| AI | Claude API (resume parsing, outreach generation) |
+| Auth | django-allauth (Google OAuth + GitHub OAuth, headless JWT) |
+| External APIs | GitHub REST API v3, Hunter.io, Greenhouse, Lever, Ashby, Workable, RemoteOK, Remotive, WWR |
+| Analytics | Built-in (session tracking, GeoIP, bot detection) |
+| Backend Hosting | Railway |
+| Frontend Hosting | Netlify |
 
-## Quick Start
+## Features
+
+### Jobs Dashboard (`/dashboard`)
+The main view. Aggregated job listings from ATS boards and job boards, with filters for source, tech stack, location (remote region, country, city), department, title, and recency. Jobs auto-refresh on a schedule via Celery Beat.
+
+### GitHub Company Search (`/companies`)
+Search GitHub for organizations using specific technologies. Results show detected tech stacks, AI tool signals, infrastructure indicators, and a match score. Click into any company for full detail — repos, contributors, open jobs, and contact info.
+
+### Company Detail (`/prospects/:id`)
+Aggregated view of an organization: all repos with detected stacks, top contributors, open job listings from ATS boards, and enriched contact data (if Hunter.io key provided).
+
+### Resume & Job Matching (`/settings`)
+Upload a PDF or DOCX resume. Claude API extracts your tech stack and experience. Jobs are automatically matched against your profile daily at 9am UTC.
+
+### AI Outreach (`/prospects/:id`)
+Generate personalized email or LinkedIn DM copy for any company. Uses your resume profile + company's detected stack + their open roles as context.
+
+### Settings (`/settings`)
+Connect GitHub (OAuth), add Hunter.io/Apollo.io API keys, upload resume, manage account.
+
+## Architecture
+
+```
+reporadar/
+├── backend/
+│   ├── apps/
+│   │   ├── accounts/        # User profile, API key management
+│   │   ├── search/          # GitHub search, stack detection, scoring
+│   │   ├── prospects/       # Organization/repo data, saved lists, export
+│   │   ├── jobs/            # ATS probing, job board aggregation, job search
+│   │   ├── resumes/         # Resume upload, parsing, job matching
+│   │   ├── enrichment/      # Hunter.io contact enrichment
+│   │   ├── outreach/        # AI message generation
+│   │   └── analytics/       # Session tracking, page views, GeoIP
+│   ├── providers/           # API adapters (GitHub, Hunter, ATS, job boards)
+│   ├── config/              # Django settings, URLs, Celery config
+│   └── tests/               # pytest suite (18 test files)
+├── frontend/
+│   ├── src/
+│   │   ├── app/             # Pages (Jobs, Search, ProspectDetail, Settings, Landing)
+│   │   ├── components/      # Layout, SetupChecklist, TechChips, ResumeUploadBanner
+│   │   ├── hooks/           # useAuth (JWT management)
+│   │   ├── lib/             # API client
+│   │   └── types/           # TypeScript interfaces
+│   └── netlify.toml         # Rewrites to Railway backend
+├── docker-compose.yml       # Local dev (Django, Celery, Postgres, Redis)
+└── CLAUDE.md                # Full project specification
+```
+
+## Authentication
+
+- **Sign up** with Google OAuth (one click)
+- **Connect GitHub** in settings for search access (read-only public repos/orgs)
+- **Add Hunter.io key** in settings for contact enrichment (BYOK)
+- All credentials encrypted at rest with Fernet
+
+## Development Setup
 
 ```bash
-# Clone
-git clone https://github.com/mattyray/reporadar.git
-cd reporadar
+# With Docker (recommended)
+docker-compose up
+
+# Or manually:
 
 # Backend
 cd backend
-python -m venv venv
-source venv/bin/activate
+python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env  # Fill in your values
+cp .env.example .env  # Fill in values
 python manage.py migrate
 python manage.py runserver
 
@@ -38,38 +108,29 @@ cd frontend
 npm install
 npm run dev
 
-# Services (separate terminal)
-docker-compose up redis
-celery -A config worker -l info
+# Workers (separate terminal)
+celery -A config worker --beat -l info
 ```
 
-## Authentication
+### Required Environment Variables
 
-**Sign up** with Google (one click, everyone has a Google account).
+```
+SECRET_KEY, DATABASE_URL, REDIS_URL, FIELD_ENCRYPTION_KEY
+GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET
+ANTHROPIC_API_KEY  # For resume parsing + outreach
+```
 
-**Connect GitHub** in settings to enable search. This uses GitHub OAuth — click a button, approve on GitHub, done. Your GitHub token gives the app read-only access to public repos and orgs.
+Hunter.io and Apollo.io keys are per-user (entered in settings), not server-level.
 
-**Add Hunter.io / Apollo.io keys** in settings for contact enrichment. These are manual API key entry since those services don't support third-party OAuth.
+## Deployment
 
-Your credentials are encrypted before storage and never shared between users.
-
-## Build Phases
-
-### Phase 1: Core Search (MVP)
-GitHub search + stack detection + org filtering + contributor info + scoring
-
-### Phase 2: Contact Enrichment
-Hunter.io integration + Apollo adapter + credit tracking + caching
-
-### Phase 3: Resume + AI Outreach
-Resume upload/parsing + personalized message generation via Claude
-
-### Phase 4: Polish + Scale
-Stripe billing, shared credentials option, GitHub App registration, export features
+- **Backend:** Railway (Docker, gunicorn + Celery in same container via `start.sh`)
+- **Frontend:** Netlify (auto-deploy from GitHub, SPA with rewrites to Railway)
+- **Celery Beat:** 6 scheduled tasks (ATS refresh, job board fetches, resume matching)
 
 ## Docs
 
-- [CLAUDE.md](CLAUDE.md) — Full project context for Claude Code
-- [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) — Complete data model specification
-- [SKILLS.md](SKILLS.md) — Technical skills demonstrated (for resume/portfolio/interviews)
-- [BUILD_LOG.md](BUILD_LOG.md) — Architecture decisions, learnings, war stories (for LinkedIn/Substack content)
+- [CLAUDE.md](CLAUDE.md) — Full project specification
+- [SKILLS.md](SKILLS.md) — Technical skills demonstrated
+- [BUILD_LOG.md](BUILD_LOG.md) — Architecture decisions and learnings
