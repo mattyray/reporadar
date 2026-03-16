@@ -181,7 +181,7 @@ class TestDashboardView:
         )
         PageView.objects.create(
             session=s,
-            path="/auth/callback?token=eyJhbGciOiJIUzI1NiJ9.longtoken",
+            path="/auth/callback?token=fake-test-token-abc123",
         )
         resp = admin_client.get("/api/analytics/dashboard/")
         pages = resp.json()["top_pages"]
