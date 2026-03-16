@@ -11,6 +11,26 @@ from django.views.decorators.csrf import csrf_exempt
 logger = logging.getLogger("config.urls")
 
 
+def _log_auth_event(request, provider, event, outcome, error_message=""):
+    """Log an auth event for analytics. Fails silently."""
+    try:
+        from apps.analytics.models import AuthEvent
+
+        ip = request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[0].strip()
+        if not ip:
+            ip = request.META.get("REMOTE_ADDR", "0.0.0.0")
+        AuthEvent.objects.create(
+            provider=provider,
+            event=event,
+            outcome=outcome,
+            user_email=getattr(request.user, "email", "") if request.user.is_authenticated else "",
+            ip_address=ip,
+            error_message=error_message[:500],
+        )
+    except Exception:
+        logger.exception("Failed to log auth event")
+
+
 @csrf_exempt
 def oauth_start(request):
     """Start Google OAuth flow — skip allauth's 'Continue' confirmation page.
@@ -79,7 +99,11 @@ def oauth_callback(request):
 
     # Let allauth handle the OAuth callback (token exchange, user creation)
     view = OAuth2CallbackView.adapter_view(GoogleOAuth2Adapter)
-    response = view(request)
+    try:
+        response = view(request)
+    except Exception as e:
+        _log_auth_event(request, "google", "login_callback", "error", str(e))
+        raise
 
     # If allauth succeeded (302 redirect) and user is now authenticated,
     # generate a JWT and redirect to frontend with it
@@ -91,9 +115,14 @@ def oauth_callback(request):
         frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:5173")
         # Pass token as query param — frontend will grab it and store in localStorage
         callback_url = f"{frontend_url}/auth/callback?{urlencode({'token': token_data})}"
+        _log_auth_event(request, "google", "login_callback", "success")
         return redirect(callback_url)
 
     # If allauth didn't succeed, return its response as-is (error page)
+    _log_auth_event(
+        request, "google", "login_callback", "error",
+        f"status={response.status_code}, authenticated={request.user.is_authenticated}",
+    )
     return response
 
 
@@ -105,15 +134,24 @@ def github_callback(request):
     from django.shortcuts import redirect
 
     view = OAuth2CallbackView.adapter_view(GitHubOAuth2Adapter)
-    response = view(request)
+    try:
+        response = view(request)
+    except Exception as e:
+        _log_auth_event(request, "github", "connect_callback", "error", str(e))
+        raise
 
     frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:5173")
 
     # allauth returns 302 on success
     if response.status_code == 302 and request.user.is_authenticated:
+        _log_auth_event(request, "github", "connect_callback", "success")
         return redirect(f"{frontend_url}/settings?github=connected")
 
     # On failure, redirect to settings with error
+    _log_auth_event(
+        request, "github", "connect_callback", "error",
+        f"status={response.status_code}, authenticated={request.user.is_authenticated}",
+    )
     return redirect(f"{frontend_url}/settings?github=error")
 
 

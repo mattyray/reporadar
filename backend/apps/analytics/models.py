@@ -73,3 +73,33 @@ class PageView(models.Model):
 
     def __str__(self):
         return f"{self.path} at {self.viewed_at:%Y-%m-%d %H:%M}"
+
+
+class AuthEvent(models.Model):
+    """Server-side auth event log — catches OAuth failures the frontend never sees."""
+
+    PROVIDER_CHOICES = [
+        ("google", "Google"),
+        ("github", "GitHub"),
+    ]
+    OUTCOME_CHOICES = [
+        ("success", "Success"),
+        ("error", "Error"),
+    ]
+
+    provider = models.CharField(max_length=10, choices=PROVIDER_CHOICES)
+    event = models.CharField(max_length=30)  # e.g. login_start, login_callback, connect_start
+    outcome = models.CharField(max_length=10, choices=OUTCOME_CHOICES)
+    user_email = models.EmailField(blank=True, default="")
+    ip_address = models.GenericIPAddressField()
+    error_message = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["created_at"]),
+            models.Index(fields=["provider", "outcome"]),
+        ]
+
+    def __str__(self):
+        return f"{self.provider} {self.event} {self.outcome} at {self.created_at:%Y-%m-%d %H:%M}"

@@ -1,15 +1,21 @@
 import json
 import logging
-from datetime import date
+from datetime import date, timedelta
 from urllib.parse import urlparse
 
 from django.core.cache import cache
+from django.db.models import Count, Q
 from django.http import JsonResponse
+from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
-from .models import PageView, Session
+from rest_framework.permissions import IsAdminUser
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from .models import AuthEvent, PageView, Session
 
 logger = logging.getLogger(__name__)
 
@@ -261,3 +267,173 @@ class StatsView(View):
 
         cache.set("public_stats", stats, 3600)
         return JsonResponse(stats)
+
+
+class DashboardView(APIView):
+    """GET /api/analytics/dashboard/ — traffic dashboard for admins.
+
+    Query params:
+        days: number of days to look back (default 1 = today)
+    """
+
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        days = min(int(request.query_params.get("days", 1)), 90)
+        cutoff = timezone.now() - timedelta(days=days)
+        human = Q(is_bot=False)
+
+        sessions = Session.objects.filter(started_at__gte=cutoff)
+        human_sessions = sessions.filter(human)
+        page_views = PageView.objects.filter(
+            viewed_at__gte=cutoff, session__is_bot=False
+        )
+
+        # -- Summary --
+        summary = {
+            "human_sessions": human_sessions.count(),
+            "bot_sessions": sessions.filter(is_bot=True).count(),
+            "page_views": page_views.count(),
+            "days": days,
+        }
+
+        # -- Top pages --
+        top_pages = list(
+            page_views.values("path")
+            .annotate(views=Count("id"))
+            .order_by("-views")[:15]
+        )
+        # Strip JWT tokens from auth/callback paths for readability
+        for p in top_pages:
+            if "?" in p["path"]:
+                p["path"] = p["path"].split("?")[0]
+        # Re-aggregate after stripping query params
+        merged = {}
+        for p in top_pages:
+            merged[p["path"]] = merged.get(p["path"], 0) + p["views"]
+        top_pages = [
+            {"path": k, "views": v}
+            for k, v in sorted(merged.items(), key=lambda x: -x[1])
+        ]
+
+        # -- Devices --
+        devices = list(
+            human_sessions.values("device_type")
+            .annotate(count=Count("id"))
+            .order_by("-count")
+        )
+
+        # -- Browsers --
+        browsers = list(
+            human_sessions.values("browser")
+            .annotate(count=Count("id"))
+            .order_by("-count")[:10]
+        )
+
+        # -- Countries --
+        countries = list(
+            human_sessions.exclude(country="")
+            .values("country")
+            .annotate(count=Count("id"))
+            .order_by("-count")[:15]
+        )
+
+        # -- Referrers --
+        referrers = list(
+            human_sessions.exclude(referrer_domain="")
+            .values("referrer_domain")
+            .annotate(count=Count("id"))
+            .order_by("-count")[:10]
+        )
+
+        # -- Daily breakdown (when days > 1) --
+        daily = []
+        if days > 1:
+            from django.db.models.functions import TruncDate
+
+            daily = list(
+                human_sessions.annotate(day=TruncDate("started_at"))
+                .values("day")
+                .annotate(sessions=Count("id"))
+                .order_by("day")
+            )
+            for d in daily:
+                d["day"] = d["day"].isoformat()
+
+        # -- Auth events --
+        auth_events = AuthEvent.objects.filter(created_at__gte=cutoff)
+        auth = {
+            "google_success": auth_events.filter(
+                provider="google", outcome="success"
+            ).count(),
+            "google_error": auth_events.filter(
+                provider="google", outcome="error"
+            ).count(),
+            "github_success": auth_events.filter(
+                provider="github", outcome="success"
+            ).count(),
+            "github_error": auth_events.filter(
+                provider="github", outcome="error"
+            ).count(),
+            "recent_errors": list(
+                auth_events.filter(outcome="error")
+                .order_by("-created_at")
+                .values("provider", "event", "error_message", "ip_address", "created_at")[:10]
+            ),
+        }
+        for e in auth["recent_errors"]:
+            e["created_at"] = e["created_at"].isoformat()
+
+        # -- Funnel (user behavior) --
+        paths_by_session = {}
+        for pv in page_views.values("session_id", "path"):
+            paths_by_session.setdefault(pv["session_id"], set()).add(
+                pv["path"].split("?")[0]
+            )
+        total = len(paths_by_session) or 1
+        funnel = {
+            "landed": len(paths_by_session),
+            "visited_login": sum(
+                1 for ps in paths_by_session.values() if "/login" in ps
+            ),
+            "completed_auth": sum(
+                1 for ps in paths_by_session.values() if "/auth/callback" in ps
+            ),
+            "reached_dashboard": sum(
+                1 for ps in paths_by_session.values()
+                if "/dashboard" in ps or "/companies" in ps
+            ),
+            "viewed_company": sum(
+                1 for ps in paths_by_session.values()
+                if any(p.startswith("/prospects/") for p in ps)
+            ),
+            "visited_settings": sum(
+                1 for ps in paths_by_session.values() if "/settings" in ps
+            ),
+        }
+
+        # -- Session depth --
+        pv_counts = list(
+            page_views.values("session_id").annotate(c=Count("id")).values_list("c", flat=True)
+        )
+        bounce = sum(1 for c in pv_counts if c == 1)
+        behavior = {
+            "avg_pages_per_session": round(sum(pv_counts) / len(pv_counts), 1) if pv_counts else 0,
+            "bounce_rate": round(bounce / len(pv_counts) * 100, 1) if pv_counts else 0,
+            "single_page_sessions": bounce,
+        }
+
+        return Response(
+            {
+                "summary": summary,
+                "top_pages": top_pages,
+                "devices": devices,
+                "browsers": browsers,
+                "countries": countries,
+                "referrers": referrers,
+                "daily": daily,
+                "auth": auth,
+                "funnel": funnel,
+                "behavior": behavior,
+            }
+        )
