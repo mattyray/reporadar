@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import SEO from '../components/SEO';
 
 function useStats() {
   const [stats, setStats] = useState<{ active_jobs: number; companies: number; tech_count: number } | null>(null);
@@ -17,6 +18,7 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-white">
+      <SEO />
       {/* Nav */}
       <nav className="border-b border-gray-200 px-6 py-4 flex items-center justify-between max-w-6xl mx-auto">
         <span className="text-xl font-bold text-gray-900">RepoRadar</span>

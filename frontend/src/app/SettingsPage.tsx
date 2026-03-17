@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import SEO from '../components/SEO';
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -20,6 +21,7 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
+      <SEO title="Settings" />
       <div>
         <h2 className="text-xl font-semibold text-gray-900">Settings</h2>
         <p className="text-sm text-gray-500 mt-1">Manage your account and connected services.</p>

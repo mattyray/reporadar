@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://reporadar-app.netlify.app/sitemap.xml

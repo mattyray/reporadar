@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import type { JobListing, ResumeProfile } from '../types/api';
+import SEO from '../components/SEO';
 import { useAuth } from '../hooks/useAuth';
 import TechChipSelector from '../components/TechChipSelector';
 import ResumeUploadBanner from '../components/ResumeUploadBanner';
@@ -116,6 +117,7 @@ export default function JobsPage() {
 
   return (
     <div className="space-y-6">
+      <SEO title="Jobs" description="Browse matching job listings from companies that use your tech stack." />
       {/* Page header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">

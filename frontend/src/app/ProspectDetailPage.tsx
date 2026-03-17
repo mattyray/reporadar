@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import type { Repo, Contributor, JobListing, RepoAnalysis } from '../types/api';
 import TechChip, { groupByCategory } from '../components/TechChip';
+import SEO from '../components/SEO';
 
 function AnalysisButton({ repo }: { repo: Repo }) {
   const queryClient = useQueryClient();
@@ -296,6 +297,7 @@ export default function ProspectDetailPage() {
 
   return (
     <div className="space-y-6">
+      <SEO title={org.name || org.github_login} description={org.description || `View ${org.github_login}'s tech stack, repos, and job openings on RepoRadar.`} />
       <button onClick={() => navigate(-1)} className="text-sm text-indigo-600 hover:underline cursor-pointer">
         &larr; Back
       </button>

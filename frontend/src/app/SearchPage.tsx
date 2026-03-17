@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import type { SearchConfig, SearchQuery, SearchResult, CompanyLookupResult } from '../types/api';
 import { useNavigate } from 'react-router-dom';
+import SEO from '../components/SEO';
 import { useAuth } from '../hooks/useAuth';
 import TechChipSelector from '../components/TechChipSelector';
 import TechChip from '../components/TechChip';
@@ -363,6 +364,7 @@ export default function SearchPage() {
 
   return (
     <div className="space-y-6">
+      <SEO title="Companies" description="Search GitHub organizations by tech stack and find companies building with your technologies." />
       {/* Page header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Companies</h1>

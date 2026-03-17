@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import SEO from '../components/SEO';
 
 const API_BASE = '/api';
 
@@ -43,6 +44,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
+      <SEO title="Sign In" />
       <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8">
         <h1 className="text-3xl font-bold text-center text-gray-900 mb-2">
           RepoRadar
