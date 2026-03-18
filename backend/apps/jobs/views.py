@@ -5,6 +5,7 @@ from django.utils import timezone
 from rest_framework import generics, status
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
+from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 
 
@@ -83,6 +84,7 @@ class OrgJobsCheckView(APIView):
 class JobSearchView(generics.ListAPIView):
     """GET /api/jobs/ — Search all active jobs, filterable by tech, location, department."""
 
+    permission_classes = [AllowAny]
     serializer_class = JobListingSerializer
     pagination_class = JobSearchPagination
 

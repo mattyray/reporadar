@@ -42,10 +42,10 @@ export default function LandingPage() {
           roles that match your skills — not just keywords.
         </p>
         <Link
-          to="/login"
+          to="/jobs"
           className="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg text-lg font-medium hover:bg-blue-700"
         >
-          Get started free
+          Try it now — no signup needed
         </Link>
 
         {stats && (stats.active_jobs > 0 || stats.companies > 0) && (

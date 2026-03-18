@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import type { JobListing, ResumeProfile } from '../types/api';
 import SEO from '../components/SEO';
@@ -8,6 +8,8 @@ import { useAuth } from '../hooks/useAuth';
 import TechChipSelector from '../components/TechChipSelector';
 import ResumeUploadBanner from '../components/ResumeUploadBanner';
 import SetupChecklist from '../components/SetupChecklist';
+
+const ANON_VISIBLE_COUNT = 5;
 
 const SOURCE_TABS = [
   { key: '', label: 'All Sources' },
@@ -51,7 +53,7 @@ const REMOTE_REGION_OPTIONS = [
 ] as const;
 
 export default function JobsPage() {
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [selectedTechs, setSelectedTechs] = useState<string[]>([]);
   const [locationFilter, setLocationFilter] = useState('');
@@ -67,6 +69,7 @@ export default function JobsPage() {
     queryKey: ['resumeProfile'],
     queryFn: api.getResumeProfile,
     retry: false,
+    enabled: isAuthenticated,
   });
 
   const hasResume = !!(resumeProfile && (resumeProfile as ResumeProfile).parsed_at);
@@ -110,6 +113,9 @@ export default function JobsPage() {
 
   const jobs: JobListing[] = jobsData?.results ?? [];
   const totalCount: number = jobsData?.count ?? jobs.length;
+  const visibleJobs = isAuthenticated ? jobs : jobs.slice(0, ANON_VISIBLE_COUNT);
+  const hiddenJobs = !isAuthenticated ? jobs.slice(ANON_VISIBLE_COUNT, ANON_VISIBLE_COUNT + 3) : [];
+  const hasHiddenJobs = !isAuthenticated && totalCount > ANON_VISIBLE_COUNT;
 
   const handleSearch = () => {
     setSearchTriggered(true);
@@ -124,14 +130,16 @@ export default function JobsPage() {
           {user?.first_name ? `Welcome, ${user.first_name}` : 'Find Jobs'}
         </h1>
         <p className="text-gray-500 mt-1">
-          Upload your resume and we'll match you with open roles across thousands of companies.
+          {isAuthenticated
+            ? "Upload your resume and we'll match you with open roles across thousands of companies."
+            : 'Search thousands of tech jobs. Sign up to unlock all results and resume matching.'}
         </p>
       </div>
 
-      <SetupChecklist />
+      {isAuthenticated && <SetupChecklist />}
 
       {/* Resume upload — the first thing new users see */}
-      <ResumeUploadBanner onParsed={handleResumeParsed} hasExisting={hasResume} />
+      {isAuthenticated && <ResumeUploadBanner onParsed={handleResumeParsed} hasExisting={hasResume} />}
 
       {/* Resume applied indicator */}
       {hasResume && selectedTechs.length > 0 && (
@@ -282,9 +290,9 @@ export default function JobsPage() {
         <div className="space-y-2">
           <p className="text-sm text-gray-500">
             {totalCount} job{totalCount !== 1 ? 's' : ''} found
-            {totalCount > jobs.length && ` (showing first ${jobs.length})`}
+            {isAuthenticated && totalCount > jobs.length && ` (showing first ${jobs.length})`}
           </p>
-          {jobs.map((job: JobListing) => (
+          {visibleJobs.map((job: JobListing) => (
             <div
               key={`${job.source}-${job.id}`}
               className="bg-white rounded-lg shadow p-4 hover:shadow-md transition-shadow"
@@ -390,6 +398,37 @@ export default function JobsPage() {
               </div>
             </div>
           ))}
+
+          {/* Blurred cards + signup CTA for anonymous users */}
+          {hasHiddenJobs && (
+            <div className="relative">
+              <div className="space-y-2 blur-sm pointer-events-none select-none" aria-hidden="true">
+                {hiddenJobs.map((job: JobListing) => (
+                  <div key={`blur-${job.source}-${job.id}`} className="bg-white rounded-lg shadow p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-full bg-gray-200 flex-shrink-0" />
+                      <div className="min-w-0">
+                        <div className="font-medium text-gray-900">{job.title}</div>
+                        <div className="text-sm text-gray-600">{job.company_name}</div>
+                        {job.location && <div className="text-xs text-gray-500 mt-1">{job.location}</div>}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/70 to-white flex flex-col items-center justify-center">
+                <p className="text-lg font-semibold text-gray-900 mb-2">
+                  {totalCount - ANON_VISIBLE_COUNT} more job{totalCount - ANON_VISIBLE_COUNT !== 1 ? 's' : ''} match your search
+                </p>
+                <Link
+                  to="/login"
+                  className="bg-indigo-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-indigo-700"
+                >
+                  Sign up free to see all results
+                </Link>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

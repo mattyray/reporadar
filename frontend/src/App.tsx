@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import Layout from './components/Layout';
+import AnonLayout from './components/AnonLayout';
 import AnalyticsTracker from './components/AnalyticsTracker';
 import LandingPage from './app/LandingPage';
 import LoginPage from './app/LoginPage';
@@ -38,6 +39,9 @@ export default function App() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/auth/callback" element={<AuthCallbackPage />} />
+      <Route element={<AnonLayout />}>
+        <Route path="/jobs" element={<JobsPage />} />
+      </Route>
       <Route
         element={
           <ProtectedRoute>
