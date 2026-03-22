@@ -27,6 +27,9 @@ class APICredential(models.Model):
         return f"{self.user.email} — {self.get_provider_display()}"
 
 
+
+
+
 def get_github_token(user):
     """Get GitHub OAuth token from allauth's SocialToken."""
     from allauth.socialaccount.models import SocialToken

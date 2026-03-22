@@ -503,6 +503,76 @@ The route swap was clean but had ripple effects everywhere:
 
 **Content angle:** "The UX surgery that turned a power tool into a product"
 
+### 2026-03-16 — SEO Foundation: Meta Tags, OG Cards, Structured Data
+
+Realized that sharing the site on LinkedIn/Twitter showed a blank preview — no title, no description, no image. Embarrassing for a site getting shared on social media.
+
+Built an `SEO` component that sets `<title>`, `<meta description>`, Open Graph tags, and Twitter Card tags on every page. Each page passes its own title/description — the landing page gets the marketing pitch, the dashboard says "Jobs | RepoRadar", prospect pages show the company name.
+
+Added structured data (JSON-LD) on the landing page — `WebApplication` schema with the site name, description, and "Free" pricing. Google can now understand what the site is and show rich snippets.
+
+Created a 1200x630 OG image for link previews — branded with the RepoRadar icon, title, and tagline. This is what people see when they share the link on LinkedIn, Twitter, or Slack.
+
+Also submitted a Google Search Console verification file. Takes a few days to start indexing but at least the foundation is there.
+
+**Content angle:** "The 30-minute SEO setup that makes your side project look real"
+
+### 2026-03-17 — First Real Traction: 15 Users, 7 Resume Uploads
+
+Woke up to actual signups. Posted on LinkedIn and traffic started flowing in — 8 sessions from LinkedIn in one day. By end of day: 4 new signups, all via Google OAuth.
+
+The numbers that mattered:
+- **15 total users** (11 signed up in the last 7 days)
+- **7 uploaded resumes** (~50% conversion from signup to core action)
+- **All 7 got 200 job matches** each — the auto-matching pipeline works
+- **185k jobs** in the database across all sources
+- **1 returning user** (jeffjacobsonhimself) came back the next day — retention signal
+
+Geography was surprising: US (19 sessions), India (6), Mexico (2), Norway (2), plus Canada, Ireland, Nigeria, Saudi Arabia, Congo, Germany. The India traffic was significant — multiple signups, one user (abhishek.is.developer) came back 5+ times in one day.
+
+Two auth errors: one GitHub connect failure (user probably denied permissions), one Google OAuth that resolved on retry. Neither was a bug on our end.
+
+**The LinkedIn effect is real.** 8 people saw a post, clicked through, and created accounts. The landing page → login → dashboard conversion path is working.
+
+**Content angle:** "My first 15 users came from LinkedIn, not Product Hunt"
+**Content angle:** "50% of signups uploaded their resume — what that says about the onboarding"
+
+### 2026-03-18 — Posted on Hacker News
+
+Shared RepoRadar on HN. Traffic pattern was completely different from LinkedIn:
+
+- HN visitors bounced hard from the landing page — they'd look and leave
+- Multiple countries within minutes: Bangladesh, Serbia, South Korea, Netherlands, Greece, Germany
+- `news.ycombinator.com` and `hacker-news.firebaseio.com` (HN mobile reader) as referrers
+- Zero signups from HN traffic (vs LinkedIn which converted well)
+
+The realization: **HN visitors are tire-kickers, LinkedIn visitors are buyers.** LinkedIn traffic comes from people actively thinking about jobs — they're the target user. HN traffic comes from people evaluating the tech, not the product.
+
+This led directly to the anonymous search feature (see next entry). If HN visitors won't sign up, let them try the tool without signing up.
+
+**Content angle:** "My HN launch got zero signups — and that was the best product lesson"
+
+### 2026-03-18 — Anonymous Job Search: Show 5, Blur the Rest
+
+The HN bounce data made it obvious: requiring Google OAuth before you can even see the product is killing conversion from cold traffic. People from HN aren't going to sign into a stranger's app just to try it.
+
+The fix: a public `/jobs` route that lets anyone search. Anonymous users see 5 real job cards, then 3 blurred cards with a gradient overlay and "12,538 more jobs match your search — Sign up free to see all results."
+
+**Implementation was surprisingly small:**
+- Backend: one line — `permission_classes = [AllowAny]` on `JobSearchView`. The anonymous throttle (20 req/min) already existed.
+- Frontend: new `AnonLayout` component (minimal nav, no logout, just "Sign up free" button), public `/jobs` route in App.tsx, conditional rendering in `JobsPage` to hide resume upload/setup checklist for anonymous users.
+- Landing page CTA changed from "Get started free" → "Try it now — no signup needed"
+- The blur effect is pure Tailwind: `blur-sm pointer-events-none select-none` on the extra cards, with `bg-gradient-to-b from-transparent via-white/70 to-white` overlay.
+
+**The conversion funnel is now:** Landing → Try the search (no signup) → See value → Hit the blur wall → Sign up to unlock.
+
+One edge case we punted on: logged-in users visiting `/jobs` see full results because their JWT is in localStorage. Need to either redirect them to `/dashboard` or detect auth state in the anon layout. Low priority — the target is anonymous visitors, not existing users.
+
+Within an hour of deploying, the first anonymous user hit `/jobs` from the landing page. The funnel is working.
+
+**Content angle:** "The one-line backend change that turned bouncing visitors into users"
+**Content angle:** "Show 5, blur the rest — the freemium pattern that actually converts"
+
 ---
 
 ## Phase 5: Polish + Scale — [dates TBD]
@@ -545,3 +615,9 @@ The route swap was clean but had ripple effects everywhere:
 | "The word 'go' ruined my tech detection for 20,000 jobs" | 2026-03-15 tech detection | High — specific, memorable, shareable |
 | "53% of my job database was invisible" | 2026-03-15 tech detection | Medium — data quality story |
 | "The UX surgery that turned a power tool into a product" | 2026-03-15 frontend reorg | Medium — product design |
+| "The 30-minute SEO setup that makes your side project look real" | 2026-03-16 SEO | Medium — practical, shareable |
+| "My first 15 users came from LinkedIn, not Product Hunt" | 2026-03-17 traction | High — founder story, counterintuitive |
+| "50% of signups uploaded their resume" | 2026-03-17 traction | Medium — conversion metrics |
+| "My HN launch got zero signups — and that was the best product lesson" | 2026-03-18 HN launch | High — honest, relatable |
+| "Show 5, blur the rest — the freemium pattern that converts" | 2026-03-18 anon search | High — tactical, reusable pattern |
+| "The one-line backend change that turned bouncing visitors into users" | 2026-03-18 anon search | Medium — technical + product |
