@@ -21,7 +21,7 @@ export default function LandingPage() {
       <SEO />
       {/* Nav */}
       <nav className="border-b border-gray-200 px-6 py-4 flex items-center justify-between max-w-6xl mx-auto">
-        <span className="text-xl font-bold text-gray-900">RepoRadar</span>
+        <span className="text-xl font-bold text-gray-900">StackJefe</span>
         <Link
           to="/login"
           className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-800"
@@ -38,7 +38,7 @@ export default function LandingPage() {
         </h1>
         <p className="text-xl text-gray-600 mb-10 max-w-2xl mx-auto">
           Upload your resume and instantly see matching jobs from thousands of companies.
-          RepoRadar combines job boards, ATS feeds, and GitHub analysis to surface
+          StackJefe combines job boards, ATS feeds, and GitHub analysis to surface
           roles that match your skills — not just keywords.
         </p>
         <Link

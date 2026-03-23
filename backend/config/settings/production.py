@@ -17,11 +17,11 @@ if SENTRY_DSN:
         environment="production",
     )
 
-# Site ID — the reporadar-app.netlify.app Site record in Django admin
+# Site ID — the stackjefe.com Site record in Django admin
 SITE_ID = int(os.environ.get("SITE_ID", "2"))
 
 # Frontend URL (for allauth redirects after OAuth)
-FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://reporadar-app.netlify.app")
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://stackjefe.com")
 
 # Trust Netlify proxy headers for correct redirect URI construction
 USE_X_FORWARDED_HOST = True
@@ -38,9 +38,11 @@ SECURE_HSTS_PRELOAD = True
 # CORS — frontend on Netlify, API calls proxied but OAuth redirects are cross-origin
 CORS_ALLOW_CREDENTIALS = True
 
-# CSRF — trust the Netlify frontend and Railway backend origins
+# CSRF — trust the frontend and Railway backend origins
+# Keep reporadar-app.netlify.app for existing blog post links
 CSRF_TRUSTED_ORIGINS = [
     FRONTEND_URL,
+    "https://reporadar-app.netlify.app",
     "https://reporadar-production.up.railway.app",
 ]
 

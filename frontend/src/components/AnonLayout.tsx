@@ -8,7 +8,7 @@ export default function AnonLayout() {
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4">
               <Link to="/" className="text-white font-bold text-xl">
-                RepoRadar
+                StackJefe
               </Link>
               <div className="flex gap-1">
                 <span className="px-3 py-2 rounded-md text-sm font-medium bg-gray-900 text-white">

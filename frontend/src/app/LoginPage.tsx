@@ -47,7 +47,7 @@ export default function LoginPage() {
       <SEO title="Sign In" />
       <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8">
         <h1 className="text-3xl font-bold text-center text-gray-900 mb-2">
-          RepoRadar
+          StackJefe
         </h1>
         <p className="text-center text-gray-600 mb-8">
           Find companies building with your tech stack

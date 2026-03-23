@@ -22,7 +22,7 @@ export default function Layout() {
                 onClick={() => navigate('/dashboard')}
                 className="text-white font-bold text-xl cursor-pointer"
               >
-                RepoRadar
+                StackJefe
               </button>
               <div className="flex gap-1">
                 <NavLink to="/dashboard" end className={linkClass}>

@@ -5,10 +5,10 @@ interface SEOProps {
   description?: string;
 }
 
-const DEFAULT_DESCRIPTION = 'Upload your resume and instantly see matching jobs from thousands of companies. RepoRadar combines job boards, ATS feeds, and GitHub analysis to surface roles that match your skills.';
+const DEFAULT_DESCRIPTION = 'Upload your resume and instantly see matching jobs from thousands of companies. StackJefe combines job boards, ATS feeds, and GitHub analysis to surface roles that match your skills.';
 
 export default function SEO({ title, description = DEFAULT_DESCRIPTION }: SEOProps) {
-  const fullTitle = title ? `${title} | RepoRadar` : 'RepoRadar — Find Jobs at Companies That Use Your Tech Stack';
+  const fullTitle = title ? `${title} | StackJefe` : 'StackJefe — Find Jobs at Companies That Use Your Tech Stack';
 
   return (
     <Helmet>
