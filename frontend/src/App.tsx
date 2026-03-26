@@ -10,6 +10,7 @@ import SearchPage from './app/SearchPage';
 import ProspectDetailPage from './app/ProspectDetailPage';
 import SettingsPage from './app/SettingsPage';
 import JobsPage from './app/JobsPage';
+import AnalyticsPage from './app/AnalyticsPage';
 
 function NotFoundPage() {
   return (
@@ -53,6 +54,7 @@ export default function App() {
         <Route path="companies" element={<SearchPage />} />
         <Route path="prospects/:id" element={<ProspectDetailPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="analytics" element={<AnalyticsPage />} />
       </Route>
       <Route path="*" element={<NotFoundPage />} />
     </Routes>

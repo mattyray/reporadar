@@ -23,6 +23,7 @@ class UserProfileView(APIView):
             "first_name": user.first_name,
             "last_name": user.last_name,
             "github_connected": has_github_connected(user),
+            "is_admin": user.is_staff,
             "has_hunter_key": APICredential.objects.filter(
                 user=user, provider="hunter", is_valid=True
             ).exists(),

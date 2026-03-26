@@ -11,6 +11,7 @@ class UserProfileSerializer(serializers.Serializer):
     first_name = serializers.CharField(read_only=True)
     last_name = serializers.CharField(read_only=True)
     github_connected = serializers.BooleanField(read_only=True)
+    is_admin = serializers.BooleanField(read_only=True)
     has_hunter_key = serializers.BooleanField(read_only=True)
     has_apollo_key = serializers.BooleanField(read_only=True)
 

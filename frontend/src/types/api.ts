@@ -4,6 +4,7 @@ export interface UserProfile {
   first_name: string;
   last_name: string;
   github_connected: boolean;
+  is_admin: boolean;
 }
 
 export interface SearchConfig {

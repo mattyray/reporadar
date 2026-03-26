@@ -34,6 +34,11 @@ export default function Layout() {
                 <NavLink to="/settings" className={linkClass}>
                   Settings
                 </NavLink>
+                {user?.is_admin && (
+                  <NavLink to="/analytics" className={linkClass}>
+                    Analytics
+                  </NavLink>
+                )}
               </div>
             </div>
             <div className="flex items-center gap-3">
