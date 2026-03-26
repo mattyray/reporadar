@@ -103,3 +103,30 @@ class AuthEvent(models.Model):
 
     def __str__(self):
         return f"{self.provider} {self.event} {self.outcome} at {self.created_at:%Y-%m-%d %H:%M}"
+
+
+class Event(models.Model):
+    """Discrete user behavior event — clicks, searches, applies, saves, etc."""
+
+    session = models.ForeignKey(
+        Session, on_delete=models.CASCADE, related_name="events", null=True, blank=True
+    )
+    user = models.ForeignKey(
+        "auth.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="analytics_events"
+    )
+    event_type = models.CharField(max_length=50, db_index=True)
+    category = models.CharField(max_length=30, db_index=True)  # job, search, company, resume, auth, nav
+    label = models.CharField(max_length=200, blank=True, default="")
+    value = models.IntegerField(null=True, blank=True)  # e.g. result count, job_id
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["created_at"]),
+            models.Index(fields=["event_type", "created_at"]),
+            models.Index(fields=["category", "created_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.category}/{self.event_type} at {self.created_at:%Y-%m-%d %H:%M}"

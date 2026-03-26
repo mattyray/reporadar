@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import PageView, Session
+from .models import Event, PageView, Session
 
 
 @admin.register(Session)
@@ -23,3 +23,12 @@ class PageViewAdmin(admin.ModelAdmin):
     list_display = ["id", "path", "page_title", "time_on_page_seconds", "viewed_at"]
     list_filter = ["path"]
     raw_id_fields = ["session"]
+
+
+@admin.register(Event)
+class EventAdmin(admin.ModelAdmin):
+    list_display = ["id", "event_type", "category", "label", "value", "user", "created_at"]
+    list_filter = ["category", "event_type"]
+    search_fields = ["label", "event_type"]
+    raw_id_fields = ["session", "user"]
+    readonly_fields = ["metadata"]

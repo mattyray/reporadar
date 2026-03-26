@@ -8,6 +8,7 @@ import { useAuth } from '../hooks/useAuth';
 import TechChipSelector from '../components/TechChipSelector';
 import TechChip from '../components/TechChip';
 import SetupChecklist from '../components/SetupChecklist';
+import { trackEvent } from '../lib/trackEvent';
 
 function formatTimeAgo(dateStr: string): string {
   const now = new Date();
@@ -122,7 +123,10 @@ function SearchResultsList({ searchId }: { searchId: string }) {
       {data.results.map((r: SearchResult) => (
         <div
           key={r.id}
-          onClick={() => navigate(`/prospects/${r.organization_id}`)}
+          onClick={() => {
+            trackEvent({ eventType: 'click', category: 'company', label: r.organization_name, value: r.organization_id });
+            navigate(`/prospects/${r.organization_id}`);
+          }}
           className="flex items-center justify-between bg-white rounded-lg shadow p-4 cursor-pointer hover:bg-gray-50"
         >
           <div className="flex items-center gap-3">
@@ -260,7 +264,10 @@ function CompanySearch() {
           {results.map((r: CompanyLookupResult) => (
             <button
               key={r.github_id}
-              onClick={() => scanCompany.mutate(r.login)}
+              onClick={() => {
+                trackEvent({ eventType: 'scan_company', category: 'company', label: r.login });
+                scanCompany.mutate(r.login);
+              }}
               disabled={scanCompany.isPending}
               className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 text-left cursor-pointer border-b border-gray-100 last:border-0"
             >
@@ -345,6 +352,12 @@ export default function SearchPage() {
 
   const handleSearch = () => {
     if (selectedTechs.length === 0 && selectedAiTools.length === 0) return;
+    trackEvent({
+      eventType: 'create',
+      category: 'search',
+      label: selectedTechs.join(', '),
+      metadata: { techs: selectedTechs, ai_tools: selectedAiTools, min_stars: minStars, min_contributors: minContributors },
+    });
     const config: SearchConfig = {
       stack_requirements: {
         must_have: selectedTechs,

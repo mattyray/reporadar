@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SEO from '../components/SEO';
+import { trackEvent } from '../lib/trackEvent';
 
 const API_BASE = '/api';
 
@@ -12,6 +13,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   const handleGoogleLogin = () => {
+    trackEvent({ eventType: 'google_login_click', category: 'auth', label: 'login_page' });
     // Go directly to Railway (not through Netlify proxy) because
     // the proxy follows redirects server-side instead of passing them to the browser
     window.location.href = 'https://reporadar-production.up.railway.app/api/auth/google/start/';

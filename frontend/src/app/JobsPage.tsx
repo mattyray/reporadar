@@ -8,6 +8,7 @@ import { useAuth } from '../hooks/useAuth';
 import TechChipSelector from '../components/TechChipSelector';
 import ResumeUploadBanner from '../components/ResumeUploadBanner';
 import SetupChecklist from '../components/SetupChecklist';
+import { trackEvent } from '../lib/trackEvent';
 
 const ANON_VISIBLE_COUNT = 5;
 
@@ -119,6 +120,21 @@ export default function JobsPage() {
 
   const handleSearch = () => {
     setSearchTriggered(true);
+    trackEvent({
+      eventType: 'search',
+      category: 'job',
+      label: selectedTechs.join(', ') || 'no techs',
+      metadata: {
+        techs: selectedTechs,
+        remote_only: remoteOnly,
+        include_hybrid: includeHybrid,
+        remote_region: remoteRegion,
+        location: locationFilter,
+        source: selectedSource,
+        days: selectedDays,
+        is_authenticated: isAuthenticated,
+      },
+    });
   };
 
   return (
@@ -263,7 +279,10 @@ export default function JobsPage() {
           {SOURCE_TABS.map((tab) => (
             <button
               key={tab.key}
-              onClick={() => setSelectedSource(tab.key)}
+              onClick={() => {
+                setSelectedSource(tab.key);
+                trackEvent({ eventType: 'filter_change', category: 'job', label: 'source', metadata: { source: tab.key || 'all' } });
+              }}
               className={`px-3 py-1.5 rounded-md text-sm font-medium cursor-pointer transition-colors ${
                 selectedSource === tab.key
                   ? 'bg-indigo-600 text-white'
@@ -314,13 +333,28 @@ export default function JobsPage() {
                       target="_blank"
                       rel="noreferrer"
                       className="font-medium text-gray-900 hover:text-indigo-600"
+                      onClick={() => trackEvent({
+                        eventType: 'click',
+                        category: 'job',
+                        label: job.title,
+                        value: job.id,
+                        metadata: { company: job.company_name, source: job.source || '' },
+                      })}
                     >
                       {job.title}
                     </a>
                     <div className="flex items-center gap-2 mt-0.5">
                       {job.organization_id ? (
                         <button
-                          onClick={() => navigate(`/prospects/${job.organization_id}`)}
+                          onClick={() => {
+                            trackEvent({
+                              eventType: 'click',
+                              category: 'company',
+                              label: job.company_name,
+                              value: job.organization_id ?? undefined,
+                            });
+                            navigate(`/prospects/${job.organization_id}`);
+                          }}
                           className="text-sm text-indigo-600 hover:underline cursor-pointer"
                         >
                           {job.company_name}
@@ -392,6 +426,13 @@ export default function JobsPage() {
                   target="_blank"
                   rel="noreferrer"
                   className="flex-shrink-0 bg-indigo-600 text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-indigo-700"
+                  onClick={() => trackEvent({
+                    eventType: 'apply_click',
+                    category: 'job',
+                    label: job.title,
+                    value: job.id,
+                    metadata: { company: job.company_name, source: job.source || '' },
+                  })}
                 >
                   Apply
                 </a>
@@ -423,6 +464,7 @@ export default function JobsPage() {
                 <Link
                   to="/login"
                   className="bg-indigo-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-indigo-700"
+                  onClick={() => trackEvent({ eventType: 'signup_cta_click', category: 'auth', label: 'blur_wall' })}
                 >
                   Sign up free to see all results
                 </Link>

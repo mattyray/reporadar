@@ -15,7 +15,7 @@ from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import AuthEvent, PageView, Session
+from .models import AuthEvent, Event, PageView, Session
 
 logger = logging.getLogger(__name__)
 
@@ -238,6 +238,68 @@ class TrackView(View):
         return JsonResponse({"page_view_id": pv.id})
 
 
+def _clean_metadata(raw):
+    """Sanitize metadata dict — keep safe types, cap at 10 keys."""
+    if not isinstance(raw, dict):
+        return {}
+    clean = {}
+    for k, v in list(raw.items())[:10]:
+        if isinstance(v, (str, int, float, bool)):
+            clean[str(k)[:50]] = v
+        elif isinstance(v, list):
+            clean[str(k)[:50]] = v[:20]
+    return clean
+
+
+VALID_CATEGORIES = {"job", "search", "company", "resume", "auth", "nav"}
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class EventTrackView(View):
+    """POST /api/analytics/event/ — record discrete user behavior events."""
+
+    def post(self, request):
+        try:
+            data = json.loads(request.body)
+        except (json.JSONDecodeError, ValueError):
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+        event_type = data.get("event_type", "")
+        category = data.get("category", "")
+
+        if not event_type or not category:
+            return JsonResponse({"error": "event_type and category required"}, status=400)
+        if category not in VALID_CATEGORIES:
+            return JsonResponse({"error": f"Invalid category: {category}"}, status=400)
+
+        ua_string = request.META.get("HTTP_USER_AGENT", "")
+        if _is_ua_bot(ua_string):
+            return JsonResponse({"status": "ok"}, status=204)
+
+        # Find session for this visitor
+        ip = _get_client_ip(request)
+        today = date.today().isoformat()
+        visitor_hash = Session.make_hash(ip, ua_string, today)
+        session = Session.objects.filter(visitor_hash=visitor_hash).first()
+
+        # Get user if authenticated
+        user = None
+        if hasattr(request, "user") and request.user.is_authenticated:
+            user = request.user
+
+        Event.objects.create(
+            session=session,
+            user=user,
+            event_type=event_type[:50],
+            category=category[:30],
+            label=data.get("label", "")[:200],
+            value=data.get("value") if isinstance(data.get("value"), int) else None,
+            metadata=_clean_metadata(data.get("metadata")),
+        )
+
+        return JsonResponse({"ok": True})
+
+
 class StatsView(View):
     """GET /api/analytics/stats/ — public stats for landing page (cached 1hr)."""
 
@@ -423,6 +485,54 @@ class DashboardView(APIView):
             "single_page_sessions": bounce,
         }
 
+        # -- Events --
+        events = Event.objects.filter(created_at__gte=cutoff)
+        events_by_category = list(
+            events.values("category")
+            .annotate(count=Count("id"))
+            .order_by("-count")
+        )
+        top_events = list(
+            events.values("event_type", "category")
+            .annotate(count=Count("id"))
+            .order_by("-count")[:20]
+        )
+        recent_events = list(
+            events.order_by("-created_at")
+            .values("event_type", "category", "label", "value", "metadata", "created_at")[:30]
+        )
+        for e in recent_events:
+            e["created_at"] = e["created_at"].isoformat()
+
+        # Job-specific metrics
+        job_events = events.filter(category="job")
+        job_metrics = {
+            "searches": job_events.filter(event_type="search").count(),
+            "job_clicks": job_events.filter(event_type="click").count(),
+            "apply_clicks": job_events.filter(event_type="apply_click").count(),
+            "filter_changes": job_events.filter(event_type="filter_change").count(),
+        }
+
+        # Search (company) metrics
+        search_events = events.filter(category="search")
+        search_metrics = {
+            "searches_created": search_events.filter(event_type="create").count(),
+            "company_clicks": events.filter(category="company", event_type="click").count(),
+            "company_saves": events.filter(category="company", event_type="save").count(),
+            "job_checks": events.filter(category="company", event_type="check_jobs").count(),
+        }
+
+        # Top searched techs (from metadata)
+        tech_searches = events.filter(
+            category="job", event_type="search"
+        ).values_list("metadata", flat=True)
+        tech_counts: dict = {}
+        for meta in tech_searches:
+            if isinstance(meta, dict):
+                for tech in meta.get("techs", []):
+                    tech_counts[tech] = tech_counts.get(tech, 0) + 1
+        top_searched_techs = sorted(tech_counts.items(), key=lambda x: -x[1])[:15]
+
         return Response(
             {
                 "summary": summary,
@@ -435,5 +545,13 @@ class DashboardView(APIView):
                 "auth": auth,
                 "funnel": funnel,
                 "behavior": behavior,
+                "events": {
+                    "by_category": events_by_category,
+                    "top_events": top_events,
+                    "recent": recent_events,
+                },
+                "job_metrics": job_metrics,
+                "search_metrics": search_metrics,
+                "top_searched_techs": [{"tech": t, "count": c} for t, c in top_searched_techs],
             }
         )

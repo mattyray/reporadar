@@ -5,12 +5,16 @@ import { api } from '../lib/api';
 import type { Repo, Contributor, JobListing, RepoAnalysis } from '../types/api';
 import TechChip, { groupByCategory } from '../components/TechChip';
 import SEO from '../components/SEO';
+import { trackEvent } from '../lib/trackEvent';
 
 function AnalysisButton({ repo }: { repo: Repo }) {
   const queryClient = useQueryClient();
 
   const analyze = useMutation({
-    mutationFn: () => api.analyzeRepo(repo.id),
+    mutationFn: () => {
+      trackEvent({ eventType: 'analyze_repo', category: 'company', label: repo.name, value: repo.id });
+      return api.analyzeRepo(repo.id);
+    },
     onSuccess: () => {
       // Poll for results — analysis takes 10-30 seconds
       const poll = setInterval(() => {
@@ -357,7 +361,10 @@ export default function ProspectDetailPage() {
       {/* Action cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <button
-          onClick={() => saveProspect.mutate()}
+          onClick={() => {
+            trackEvent({ eventType: 'save', category: 'company', label: org.name || org.github_login, value: orgId });
+            saveProspect.mutate();
+          }}
           disabled={saveProspect.isPending}
           className="bg-white rounded-lg shadow p-4 text-left hover:shadow-md transition-shadow cursor-pointer border-2 border-transparent hover:border-indigo-200"
         >
@@ -368,7 +375,10 @@ export default function ProspectDetailPage() {
         </button>
 
         <button
-          onClick={() => checkJobs.mutate()}
+          onClick={() => {
+            trackEvent({ eventType: 'check_jobs', category: 'company', label: org.name || org.github_login, value: orgId });
+            checkJobs.mutate();
+          }}
           disabled={checkJobs.isPending}
           className="bg-white rounded-lg shadow p-4 text-left hover:shadow-md transition-shadow cursor-pointer border-2 border-transparent hover:border-emerald-200"
         >
@@ -394,6 +404,13 @@ export default function ProspectDetailPage() {
                 target="_blank"
                 rel="noreferrer"
                 className="block border border-gray-200 rounded-md p-3 hover:bg-gray-50 transition-colors"
+                onClick={() => trackEvent({
+                  eventType: 'apply_click',
+                  category: 'job',
+                  label: job.title,
+                  value: job.id,
+                  metadata: { company: org.name || org.github_login, source: 'prospect_detail' },
+                })}
               >
                 <div className="flex items-center justify-between">
                   <div>

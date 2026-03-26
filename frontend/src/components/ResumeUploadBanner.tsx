@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
+import { trackEvent } from '../lib/trackEvent';
 
 interface ResumeUploadBannerProps {
   onParsed?: (techStack: string[]) => void;
@@ -21,7 +22,10 @@ export default function ResumeUploadBanner({ onParsed, hasExisting }: ResumeUplo
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) upload.mutate(file);
+    if (file) {
+      trackEvent({ eventType: 'upload', category: 'resume', label: hasExisting ? 're-upload' : 'first_upload' });
+      upload.mutate(file);
+    }
   };
 
   return (
