@@ -32,6 +32,7 @@ class APICredential(models.Model):
 
 
 
+
 def get_github_token(user):
     """Get GitHub OAuth token from allauth's SocialToken."""
     from allauth.socialaccount.models import SocialToken
